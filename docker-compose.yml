@@ -1,0 +1,7 @@
+version: '3.2'
+
+
+services: 
+  gateway: 
+    build: 
+      context: services/gateway
