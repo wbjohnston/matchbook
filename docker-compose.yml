@@ -6,3 +6,5 @@ services:
     env_file: services/gateway/.env
     build: 
       context: services/gateway
+    ports: 
+      - '8080:8080'
