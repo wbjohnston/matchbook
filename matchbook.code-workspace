@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "/",
+			"path": "."
+		},
+		{
+			"name": "service:gateway",
+			"path": "./services/gateway"
+		}
+	],
+	"settings": {}
+}
