@@ -7,6 +7,10 @@
 		{
 			"name": "service:gateway",
 			"path": "./services/gateway"
+		},
+		{
+			"name": "service:matching-engine",
+			"path": "./services/matching-engine"
 		}
 	],
 	"settings": {}
