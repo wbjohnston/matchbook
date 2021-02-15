@@ -6,7 +6,10 @@ RUN apk add --no-cache musl-dev
 # RUN cargo new gateway
 
 
+
 WORKDIR /usr/src/app
+# We need to do this 
+COPY matchbook-types/ matchbook-types/
 COPY Cargo.toml Cargo.lock ./
 # build and cache dependencies 
 COPY src/ src/

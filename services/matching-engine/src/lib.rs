@@ -1,8 +1,9 @@
-use std::{cmp::PartialOrd, collections::{HashSet, BinaryHeap}};
-use std::cmp::{Reverse};
-
-pub type Price = usize;
-pub type Quantity = usize;
+use matchbook_types::{Price, Quantity};
+use std::cmp::Reverse;
+use std::{
+    cmp::PartialOrd,
+    collections::{BinaryHeap, HashSet},
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct MatchingEngine {
@@ -36,7 +37,10 @@ impl Book {
     /// let _ = book.submit_limit_ask(better_order);
     /// assert_eq!(book.asks().nth(0), Some(&better_order));
     /// ```
-    pub fn submit_limit_ask(&mut self, order: LimitOrder) -> Result<Vec<Fill>, Box<dyn std::error::Error>> {
+    pub fn submit_limit_ask(
+        &mut self,
+        order: LimitOrder,
+    ) -> Result<Vec<Fill>, Box<dyn std::error::Error>> {
         self.asks.push(order);
         Ok(self.fill_matching())
     }
@@ -61,9 +65,12 @@ impl Book {
     /// let _ = book.submit_limit_bid(better_order);
     /// assert_eq!(book.bids().nth(0), Some(&better_order));
     /// ```
-    pub fn submit_limit_bid(&mut self, order: LimitOrder) -> Result<Vec<Fill>, Box<dyn std::error::Error>> {
+    pub fn submit_limit_bid(
+        &mut self,
+        order: LimitOrder,
+    ) -> Result<Vec<Fill>, Box<dyn std::error::Error>> {
         self.bids.push(Reverse(order));
-         Ok(self.fill_matching())
+        Ok(self.fill_matching())
     }
 
     /// Attempt to fill any orders
@@ -76,7 +83,6 @@ impl Book {
                     Some(ask) if ask.price >= bid.0.price => ask,
                     _ => break 'matching,
                 };
-                
                 let fillable_quantity = ask.remaining().min(bid.0.remaining());
 
                 ask.fill(fillable_quantity);
@@ -84,32 +90,35 @@ impl Book {
 
                 fills.push(Fill {
                     price: ask.price,
-                    quantity: fillable_quantity
+                    quantity: fillable_quantity,
                 });
             } else {
-                break 'matching
+                break 'matching;
             }
 
             match self.bids.peek().clone() {
-                Some(Reverse(bid)) if bid.is_filled() => { self.bids.pop(); },
+                Some(Reverse(bid)) if bid.is_filled() => {
+                    self.bids.pop();
+                }
                 _ => {}
             };
 
             match self.asks.peek().clone() {
-                Some(ask) if ask.is_filled() => { self.asks.pop(); },
+                Some(ask) if ask.is_filled() => {
+                    self.asks.pop();
+                }
                 _ => {}
             };
         }
 
-
         fills
     }
 
-    pub fn asks(&self) -> impl Iterator<Item=&LimitOrder> {
+    pub fn asks(&self) -> impl Iterator<Item = &LimitOrder> {
         self.asks.iter()
     }
 
-    pub fn bids(&self) -> impl Iterator<Item=&LimitOrder> {
+    pub fn bids(&self) -> impl Iterator<Item = &LimitOrder> {
         self.bids.iter().map(|Reverse(x)| x)
     }
 }
@@ -144,7 +153,7 @@ impl LimitOrder {
         LimitOrder {
             quantity,
             price,
-            remaining: quantity
+            remaining: quantity,
         }
     }
 
@@ -172,8 +181,4 @@ impl LimitOrder {
     }
 }
 
-
-
-mod test {
-
-}
+mod test {}
