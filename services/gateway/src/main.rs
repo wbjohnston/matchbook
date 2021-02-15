@@ -32,10 +32,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                 };
 
                 // Write the data back
-                if let Err(e) = udp_emitter.send(&buf[0..n]).await {
-                    eprintln!("failed to write to socket; err = {:?}", e);
-                    return;
-                }
+                // if let Err(e) = udp_emitter.send(&buf[0..n]).await {
+                //     eprintln!("failed to write to socket; err = {:?}", e);
+                //     return;
+                // }
             }
 
         });
