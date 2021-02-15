@@ -11,6 +11,10 @@
 		{
 			"name": "service:matching-engine",
 			"path": "./services/matching-engine"
+		},
+		{
+			"name": "package:matchbook-types",
+			"path": "./packages/matchbook-types"
 		}
 	],
 	"settings": {}
