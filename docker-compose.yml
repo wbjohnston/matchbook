@@ -1,13 +1,16 @@
 version: '3.2'
 
-
 services: 
   gateway: 
-    env_file: services/gateway/.env
+    env_file:
+      - services/gateway/.env
+      - .env
     build: 
       context: services/gateway
     ports: 
       - '8080:8080'
   matching-engine:
+    env_file: 
+      - .env
     build: 
       context: services/matching-engine

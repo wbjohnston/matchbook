@@ -1,13 +1,41 @@
-use matchbook_types::{Price, Quantity};
+use matchbook_types::{Price, Quantity, Side, SymbolOwned, SymbolRef};
 use std::cmp::Reverse;
 use std::{
     cmp::PartialOrd,
-    collections::{BinaryHeap, HashSet},
+    collections::{BinaryHeap, HashMap},
 };
 
 #[derive(Debug, Clone, Default)]
 pub struct MatchingEngine {
-    books: HashSet<String, Book>,
+    books: HashMap<SymbolOwned, Book>,
+}
+
+impl MatchingEngine {
+    pub fn submit_limit_order(
+        &mut self,
+        side: Side,
+        symbol: SymbolRef,
+        price: Price,
+        quantity: Quantity,
+    ) -> Result<Vec<Fill>, Box<dyn std::error::Error>> {
+        let order = LimitOrder::new(quantity, price);
+        let book = match self.books.get_mut(symbol) {
+            Some(book) => book,
+            None => return Err(format!("symbol '{}' does not exist", symbol).into()),
+        };
+
+        let fills = match side {
+            Side::Ask => book.submit_limit_ask(order)?,
+            Side::Bid => book.submit_limit_bid(order)?,
+        };
+
+        Ok(fills)
+    }
+
+    /// Create a symbol if it doesn't exist and return true, otherwise do nothing and return false
+    pub fn create_symbol(&mut self, symbol: SymbolOwned) -> bool {
+        self.books.insert(symbol, Book::default()).is_none()
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -77,39 +105,39 @@ impl Book {
     fn fill_matching(&mut self) -> Vec<Fill> {
         let mut fills = vec![];
 
-        'matching: loop {
-            if let Some(mut bid) = self.bids.peek_mut() {
-                let mut ask = match self.asks.peek_mut() {
-                    Some(ask) if ask.price >= bid.0.price => ask,
-                    _ => break 'matching,
-                };
-                let fillable_quantity = ask.remaining().min(bid.0.remaining());
+        // 'matching: loop {
+        //     if let Some(mut bid) = self.bids.peek_mut() {
+        //         let mut ask = match self.asks.peek_mut() {
+        //             Some(ask) if ask.price >= bid.0.price => ask,
+        //             _ => break 'matching,
+        //         };
+        //         let fillable_quantity = ask.remaining().min(bid.0.remaining());
 
-                ask.fill(fillable_quantity);
-                bid.0.fill(fillable_quantity);
+        //         ask.fill(fillable_quantity);
+        //         bid.0.fill(fillable_quantity);
 
-                fills.push(Fill {
-                    price: ask.price,
-                    quantity: fillable_quantity,
-                });
-            } else {
-                break 'matching;
-            }
+        //         fills.push(Fill {
+        //             price: ask.price,
+        //             quantity: fillable_quantity,
+        //         });
+        //     } else {
+        //         break 'matching;
+        //     }
 
-            match self.bids.peek().clone() {
-                Some(Reverse(bid)) if bid.is_filled() => {
-                    self.bids.pop();
-                }
-                _ => {}
-            };
+        //     match self.bids.peek().clone() {
+        //         Some(Reverse(bid)) if bid.is_filled() => {
+        //             self.bids.pop();
+        //         }
+        //         _ => {}
+        //     };
 
-            match self.asks.peek().clone() {
-                Some(ask) if ask.is_filled() => {
-                    self.asks.pop();
-                }
-                _ => {}
-            };
-        }
+        //     match self.asks.peek().clone() {
+        //         Some(ask) if ask.is_filled() => {
+        //             self.asks.pop();
+        //         }
+        //         _ => {}
+        //     };
+        // }
 
         fills
     }

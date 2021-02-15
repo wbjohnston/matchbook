@@ -2,10 +2,6 @@ FROM rust:1.50-alpine3.12 as builder
 
 
 RUN apk add --no-cache musl-dev
-# WORKDIR /usr/src/
-# RUN cargo new gateway
-
-
 
 WORKDIR /usr/src/app
 # We need to do this 
