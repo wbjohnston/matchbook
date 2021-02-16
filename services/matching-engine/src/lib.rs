@@ -105,39 +105,39 @@ impl Book {
     fn fill_matching(&mut self) -> Vec<Fill> {
         let mut fills = vec![];
 
-        // 'matching: loop {
-        //     if let Some(mut bid) = self.bids.peek_mut() {
-        //         let mut ask = match self.asks.peek_mut() {
-        //             Some(ask) if ask.price >= bid.0.price => ask,
-        //             _ => break 'matching,
+        //     'matching: loop {
+        //         if let Some(mut bid) = self.bids.peek_mut() {
+        //             let mut ask = match self.asks.peek_mut() {
+        //                 Some(ask) if ask.price >= bid.0.price => ask,
+        //                 _ => break 'matching,
+        //             };
+        //             let fillable_quantity = ask.remaining().min(bid.0.remaining());
+
+        //             ask.fill(fillable_quantity);
+        //             bid.0.fill(fillable_quantity);
+
+        //             fills.push(Fill {
+        //                 price: ask.price,
+        //                 quantity: fillable_quantity,
+        //             });
+        //         } else {
+        //             break 'matching;
+        //         }
+
+        //         match self.bids.peek().clone() {
+        //             Some(Reverse(bid)) if bid.is_filled() => {
+        //                 self.bids.pop();
+        //             }
+        //             _ => {}
         //         };
-        //         let fillable_quantity = ask.remaining().min(bid.0.remaining());
 
-        //         ask.fill(fillable_quantity);
-        //         bid.0.fill(fillable_quantity);
-
-        //         fills.push(Fill {
-        //             price: ask.price,
-        //             quantity: fillable_quantity,
-        //         });
-        //     } else {
-        //         break 'matching;
+        //         match self.asks.peek().clone() {
+        //             Some(ask) if ask.is_filled() => {
+        //                 self.asks.pop();
+        //             }
+        //             _ => {}
+        //         };
         //     }
-
-        //     match self.bids.peek().clone() {
-        //         Some(Reverse(bid)) if bid.is_filled() => {
-        //             self.bids.pop();
-        //         }
-        //         _ => {}
-        //     };
-
-        //     match self.asks.peek().clone() {
-        //         Some(ask) if ask.is_filled() => {
-        //             self.asks.pop();
-        //         }
-        //         _ => {}
-        //     };
-        // }
 
         fills
     }
@@ -208,5 +208,3 @@ impl LimitOrder {
         self.quantity == self.remaining
     }
 }
-
-mod test {}

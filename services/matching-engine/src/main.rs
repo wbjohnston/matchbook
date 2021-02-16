@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = SocketAddrV4::new(IP_ALL.into(), config.multicast_port);
     let multi_addr = SocketAddrV4::new(config.multicast_address, config.multicast_port);
     let std_socket = bind_multicast(&addr, &multi_addr)?;
-    let socket = UdpSocket::from_std(std_socket).unwrap();
+    let socket = UdpSocket::from_std(std_socket)?;
 
     // TODO(will): how do I make the buffer dynamically grow based on message size?
     let mut buf = vec![0; 1024 * 1024];
@@ -62,6 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 struct Config {
     pub multicast_address: Ipv4Addr,
     pub multicast_port: u16,
