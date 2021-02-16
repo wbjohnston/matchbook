@@ -5,7 +5,6 @@ RUN apk add --no-cache musl-dev
 # WORKDIR /usr/src/
 # RUN cargo new gateway
 
-
 WORKDIR /usr/src/gateway
 COPY Cargo.toml Cargo.lock ./
 # build and cache dependencies 

@@ -17,7 +17,7 @@ impl MatchingEngine {
         symbol: SymbolRef,
         price: Price,
         quantity: Quantity,
-    ) -> Result<Vec<Fill>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<Execution>, Box<dyn std::error::Error>> {
         let order = LimitOrder::new(quantity, price);
         let book = match self.books.get_mut(symbol) {
             Some(book) => book,
@@ -68,7 +68,7 @@ impl Book {
     pub fn submit_limit_ask(
         &mut self,
         order: LimitOrder,
-    ) -> Result<Vec<Fill>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<Execution>, Box<dyn std::error::Error>> {
         self.asks.push(order);
         Ok(self.fill_matching())
     }
@@ -96,48 +96,48 @@ impl Book {
     pub fn submit_limit_bid(
         &mut self,
         order: LimitOrder,
-    ) -> Result<Vec<Fill>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<Execution>, Box<dyn std::error::Error>> {
         self.bids.push(Reverse(order));
         Ok(self.fill_matching())
     }
 
     /// Attempt to fill any orders
-    fn fill_matching(&mut self) -> Vec<Fill> {
+    fn fill_matching(&mut self) -> Vec<Execution> {
         let mut fills = vec![];
 
-        //     'matching: loop {
-        //         if let Some(mut bid) = self.bids.peek_mut() {
-        //             let mut ask = match self.asks.peek_mut() {
-        //                 Some(ask) if ask.price >= bid.0.price => ask,
-        //                 _ => break 'matching,
-        //             };
-        //             let fillable_quantity = ask.remaining().min(bid.0.remaining());
-
-        //             ask.fill(fillable_quantity);
-        //             bid.0.fill(fillable_quantity);
-
-        //             fills.push(Fill {
-        //                 price: ask.price,
-        //                 quantity: fillable_quantity,
-        //             });
-        //         } else {
-        //             break 'matching;
-        //         }
-
-        //         match self.bids.peek().clone() {
-        //             Some(Reverse(bid)) if bid.is_filled() => {
-        //                 self.bids.pop();
-        //             }
-        //             _ => {}
+        // 'matching: loop {
+        //     if let Some(mut bid) = self.bids.peek_mut() {
+        //         let mut ask = match self.asks.peek_mut() {
+        //             Some(ask) if ask.price >= bid.0.price => ask,
+        //             _ => break 'matching,
         //         };
+        //         let fillable_quantity = ask.remaining().min(bid.0.remaining());
 
-        //         match self.asks.peek().clone() {
-        //             Some(ask) if ask.is_filled() => {
-        //                 self.asks.pop();
-        //             }
-        //             _ => {}
-        //         };
+        //         ask.fill(fillable_quantity);
+        //         bid.0.fill(fillable_quantity);
+
+        //         fills.push(Execution {
+        //             price: ask.price,
+        //             quantity: fillable_quantity,
+        //         });
+        //     } else {
+        //         break 'matching;
         //     }
+
+        //     match self.bids.peek().clone() {
+        //         Some(Reverse(bid)) if bid.is_filled() => {
+        //             self.bids.pop();
+        //         }
+        //         _ => {}
+        //     };
+
+        //     match self.asks.peek().clone() {
+        //         Some(ask) if ask.is_filled() => {
+        //             self.asks.pop();
+        //         }
+        //         _ => {}
+        //     };
+        // }
 
         fills
     }
@@ -152,7 +152,7 @@ impl Book {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct Fill {
+pub struct Execution {
     quantity: Quantity,
     price: Price,
 }
@@ -205,6 +205,6 @@ impl LimitOrder {
     }
 
     pub fn is_filled(&self) -> bool {
-        self.quantity == self.remaining
+        self.remaining == 0
     }
 }

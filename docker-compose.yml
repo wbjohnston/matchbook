@@ -7,10 +7,11 @@ services:
       - .env
     build: 
       context: services/gateway
-    ports: 
-      - '8080:8080'
+    network_mode: host
   matching-engine:
     env_file: 
       - .env
+    network_mode: host
     build: 
       context: services/matching-engine
+
