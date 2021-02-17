@@ -6,9 +6,10 @@ RUN apk add --no-cache musl-dev
 # RUN cargo new gateway
 
 WORKDIR /usr/src/gateway
-COPY Cargo.toml Cargo.lock ./
+COPY packages/ /usr/packages/
+COPY services/gateway/Cargo.toml services/gateway/Cargo.lock ./
 # build and cache dependencies 
-COPY src/ src/
+COPY services/gateway/src/ src/
 RUN cargo build --release
 
 FROM alpine:3.12
