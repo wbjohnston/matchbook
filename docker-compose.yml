@@ -1,17 +1,19 @@
 version: '3.2'
 
 services: 
-  gateway: 
-    env_file:
-      - services/gateway/.env
-      - .env
-    build: 
-      context: services/gateway
-    network_mode: host
+  # gateway: 
+  #   env_file:
+  #     - services/gateway/.env
+  #     - .env
+  #   build: 
+  #     dockerfile: services/gateway/Dockerfile
+  #     context: .
+  #   network_mode: host
   matching-engine:
     env_file: 
       - .env
     network_mode: host
     build: 
-      context: services/matching-engine
+      context: .
+      dockerfile: services/matching-engine/Dockerfile
 

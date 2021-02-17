@@ -77,7 +77,6 @@ dependencies = [
 [[package]]
 name = "matchbook-types"
 version = "0.1.0"
-source = "git+https://github.com/wbjohnston/matchbook#f9b3b84b72fd83705be61b4ed79a19e15d624f67"
 dependencies = [
  "serde",
 ]
