@@ -10,6 +10,8 @@ services:
       context: .
     network_mode: host
   matching-engine:
+    environment: 
+      - RUST_LOG=debug
     env_file: 
       - services/matching-engine/.env
       - .env
