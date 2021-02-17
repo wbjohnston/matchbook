@@ -5,8 +5,8 @@
 			"path": "."
 		},
 		{
-			"name": "service:gateway",
-			"path": "./services/gateway"
+			"name": "service:port",
+			"path": "./services/port"
 		},
 		{
 			"name": "service:matching-engine",

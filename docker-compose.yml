@@ -1,12 +1,12 @@
 version: '3.2'
 
 services: 
-  gateway: 
+  port: 
     env_file:
-      - services/gateway/.env
+      - services/port/.env
       - .env
     build: 
-      dockerfile: services/gateway/Dockerfile
+      dockerfile: services/port/Dockerfile
       context: .
     network_mode: host
   matching-engine:

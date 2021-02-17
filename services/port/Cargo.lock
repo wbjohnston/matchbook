@@ -27,16 +27,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "gateway"
-version = "0.1.0"
-dependencies = [
- "matchbook-types",
- "serde_json",
- "socket2",
- "tokio",
-]
-
-[[package]]
 name = "hermit-abi"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -175,6 +165,16 @@ name = "pin-project-lite"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439697af366c49a6d0a010c56a0d97685bc140ce0d377b13a2ea2aa42d64a827"
+
+[[package]]
+name = "port"
+version = "0.1.0"
+dependencies = [
+ "matchbook-types",
+ "serde_json",
+ "socket2",
+ "tokio",
+]
 
 [[package]]
 name = "proc-macro2"

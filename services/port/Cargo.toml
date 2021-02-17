@@ -1,5 +1,5 @@
 [package]
-name = "gateway"
+name = "port"
 version = "0.1.0"
 authors = ["Will Johnston <wbjohnston@gmail.com>"]
 edition = "2018"
