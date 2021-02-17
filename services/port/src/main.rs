@@ -1,6 +1,7 @@
 use matchbook_types::*;
 use socket2::{Domain, Protocol, Socket, Type};
 use std::net::{Ipv4Addr, SocketAddrV4};
+use std::str::FromStr;
 use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, UdpSocket};
 
@@ -93,15 +94,21 @@ fn bind_multicast(
 
 #[derive(Debug, Clone, Copy)]
 struct Config {
+    pub service_identifier: ServiceIdentifier,
     pub multicast_address: Ipv4Addr,
     pub multicast_port: u16,
 }
 
 fn get_config_from_env() -> Result<Config, Box<dyn std::error::Error>> {
     Ok(Config {
+        service_identifier: std::env::var("SERVICE_IDENTIFIER")
+            .map(|x| ServiceIdentifier::from_str(x.as_str()).unwrap())
+            .expect("missing required environment variable 'SERVICE_IDENTIFIER'"),
+
         multicast_address: std::env::var("MULTICAST_ADDRESS")
             .unwrap_or(DEFAULT_MULTICAST_ADDRESS.to_string())
             .parse()?,
+
         multicast_port: std::env::var("MULTICAST_PORT")
             .unwrap_or(DEFAULT_MULTICAST_PORT.to_string())
             .parse()?,
