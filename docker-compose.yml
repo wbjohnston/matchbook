@@ -11,6 +11,7 @@ services:
     network_mode: host
   matching-engine:
     env_file: 
+      - services/matching-engine/.env
       - .env
     network_mode: host
     build: 
