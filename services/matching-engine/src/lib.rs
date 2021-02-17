@@ -153,8 +153,8 @@ impl Book {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Execution {
-    quantity: Quantity,
-    price: Price,
+    pub quantity: Quantity,
+    pub price: Price,
 }
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]

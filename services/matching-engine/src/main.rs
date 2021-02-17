@@ -1,3 +1,5 @@
+use env_logger;
+use log;
 use matchbook_types::*;
 use matching_engine::*;
 use serde_json;
@@ -11,6 +13,7 @@ const IP_ALL: [u8; 4] = [0, 0, 0, 0];
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
     let config = get_config_from_env()?;
 
     let addr = SocketAddrV4::new(IP_ALL.into(), config.multicast_port);
@@ -26,13 +29,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         let (n, addr) = socket.recv_from(&mut buf).await?;
-        println!("recieved {} bytes from {}", n, addr);
+        log::info!("received {} bytes from client at {}", n, addr);
 
         let message_as_str = match std::str::from_utf8(&buf[..n]) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("failed to parse received message into utf8. ignoring message");
-                eprintln!("{}", e);
+                log::error!("failed to parse received message into utf8. ignoring message");
+                log::error!("{}", e);
                 continue;
             }
         };
@@ -40,13 +43,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let command: Command = match serde_json::from_str(message_as_str) {
             Ok(command) => command,
             Err(e) => {
-                eprintln!("failed to parse message into command");
-                eprintln!("{}", e);
+                log::error!("failed to parse message into command");
+                log::error!("{}", e);
                 continue;
             }
         };
 
-        println!("order = {:?}", &command);
         match command {
             Command::LimitOrderSubmitRequest {
                 quantity,
@@ -54,12 +56,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 symbol,
                 side,
             } => {
+                // FIXME:
+                log::info!(
+                    "received request to open {:?} limit order for {} {} at {}",
+                    side,
+                    quantity,
+                    symbol,
+                    price
+                );
                 let fills = engine.submit_limit_order(side, symbol.as_str(), price, quantity)?;
-                dbg!(&fills);
+                fills.iter().for_each(|execution| {
+                    log::info!(
+                        "executed {} shares of {} at {}",
+                        execution.quantity,
+                        symbol,
+                        execution.price
+                    )
+                });
             }
         }
-
-        dbg!(&engine);
     }
 }
 
