@@ -93,6 +93,7 @@ fn bind_multicast(
 
 #[derive(Debug, Clone, Copy)]
 struct Config {
+    pub service_identifier: ServiceIdentifier,
     pub multicast_address: Ipv4Addr,
     pub multicast_port: u16,
 }
