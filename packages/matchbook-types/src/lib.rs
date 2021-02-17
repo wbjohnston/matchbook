@@ -50,12 +50,14 @@ impl std::str::FromStr for ServiceIdentifier {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum ServiceKind {
     Port,
+    MatchingEngine,
 }
 
 impl ServiceKind {
     pub fn as_str<'a>(self) -> &'a str {
         match self {
             ServiceKind::Port => "port",
+            ServiceKind::MatchingEngine => "matching-engine",
         }
     }
 }
@@ -66,6 +68,7 @@ impl std::str::FromStr for ServiceKind {
     fn from_str(s: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> {
         match s {
             "port" => Ok(ServiceKind::Port),
+            "matching-engine" => Ok(ServiceKind::MatchingEngine),
             unknown => Err(format!("service kind '{}' is unknown", unknown).into()),
         }
     }
