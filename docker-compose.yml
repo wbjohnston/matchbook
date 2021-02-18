@@ -8,6 +8,8 @@ services:
     build: 
       dockerfile: services/port/Dockerfile
       context: .
+    environment: 
+      - RUST_LOG=debug
     network_mode: host
   matching-engine:
     environment: 
