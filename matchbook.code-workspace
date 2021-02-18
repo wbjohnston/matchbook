@@ -15,6 +15,10 @@
 		{
 			"name": "package:matchbook-types",
 			"path": "./packages/matchbook-types"
+		},
+		{
+			"name": "package:matchbook-util",
+			"path": "./packages/matchbook-util"
 		}
 	],
 	"settings": {}

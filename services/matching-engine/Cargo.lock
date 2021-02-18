@@ -121,12 +121,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "matchbook-util"
+version = "0.1.0"
+dependencies = [
+ "socket2",
+]
+
+[[package]]
 name = "matching-engine"
 version = "0.1.0"
 dependencies = [
  "env_logger",
  "log",
  "matchbook-types",
+ "matchbook-util",
  "serde_json",
  "socket2",
  "tokio",

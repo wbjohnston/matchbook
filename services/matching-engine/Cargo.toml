@@ -15,6 +15,7 @@ src = "src/lib.rs"
 [dependencies]
 log = "0.4"
 matchbook-types = {path = "../../packages/matchbook-types"}
+matchbook-util = { path = "../../packages/matchbook-util" }
 tokio = {version = "1.2.0", features = ["full"]}
 socket2 = { version = "0.3.4", features = ["reuseport"] }
 serde_json = "1.0"

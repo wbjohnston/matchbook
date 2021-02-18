@@ -1,6 +1,7 @@
 use env_logger;
 use log;
 use matchbook_types::*;
+use matchbook_util::*;
 use matching_engine::*;
 use serde_json;
 use std::net::{Ipv4Addr, SocketAddrV4};
@@ -97,23 +98,4 @@ fn get_config_from_env() -> Result<Config, Box<dyn std::error::Error>> {
             .unwrap_or(DEFAULT_MULTICAST_PORT.to_string())
             .parse()?,
     })
-}
-
-/// Bind socket to multicast address with IP_MULTICAST_LOOP and SO_REUSEADDR Enabled
-fn bind_multicast(
-    addr: &SocketAddrV4,
-    multi_addr: &SocketAddrV4,
-) -> Result<std::net::UdpSocket, Box<dyn std::error::Error>> {
-    use socket2::{Domain, Protocol, Socket, Type};
-
-    assert!(multi_addr.ip().is_multicast(), "Must be multcast address");
-
-    let socket = Socket::new(Domain::ipv4(), Type::dgram(), Some(Protocol::udp()))?;
-
-    socket.set_reuse_address(true)?;
-    socket.bind(&socket2::SockAddr::from(*addr))?;
-    socket.set_multicast_loop_v4(true)?;
-    socket.join_multicast_v4(multi_addr.ip(), addr.ip())?;
-
-    Ok(socket.into_udp_socket())
 }
