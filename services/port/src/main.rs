@@ -2,7 +2,8 @@ use env_logger;
 use log;
 use matchbook_types::*;
 use matchbook_util::*;
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::collections::HashMap;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::str::FromStr;
 use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, UdpSocket};
@@ -15,7 +16,7 @@ const IP_ALL: [u8; 4] = [0, 0, 0, 0];
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
     let config = get_config_from_env()?;
-    let tcp_listener_addr: SocketAddrV4 = format!("127.0.0.1:{}", 8080).parse()?;
+    let tcp_listener_addr: SocketAddrV4 = format!("0.0.0.0:{}", 8080).parse()?;
     let tcp_listener = TcpListener::bind(tcp_listener_addr).await?;
     log::info!("started listening for TCP clients on {}", tcp_listener_addr);
 
@@ -46,8 +47,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
+    let mut participant_id_map: HashMap<IpAddr, u64> = HashMap::new();
+    let mut participant_counter = 0;
+
     loop {
         let (mut socket, addr) = tcp_listener.accept().await?;
+        // TODO(will): this participant id generation needs to be smarter and will eventually
+        //              need to associate participant ids with account ids
+        let participant_id = if let Some(id) = participant_id_map.get(&addr.ip()) {
+            id.clone()
+        } else {
+            let participant_id = participant_counter;
+            participant_counter += 1;
+            participant_id_map.insert(addr.ip(), participant_id);
+            participant_id
+        };
+
         let tx = tx.clone();
         tokio::spawn(async move {
             let mut buf = vec![0; 1024];
@@ -72,12 +87,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             side,
                         } => {
                             log::info!(
-                                "received limit order submit request to {:?} {} {} at {} from client at {}",
+                                "received limit order submit request to {:?} {} {} at {} from client at {} with participant id {}",
                                 side,
                                 symbol,
                                 quantity,
                                 price,
-                                addr
+                                addr,
+                                participant_id
                             );
                         }
                     }
