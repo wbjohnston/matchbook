@@ -41,17 +41,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
-        let command: Command = match serde_json::from_str(message_as_str) {
-            Ok(command) => command,
+        let message: Message = match serde_json::from_str(message_as_str) {
+            Ok(message) => message,
             Err(e) => {
-                log::error!("failed to parse message into command");
+                log::error!("failed to parse message");
                 log::error!("{}", e);
                 continue;
             }
         };
 
-        match command {
-            Command::LimitOrderSubmitRequest {
+        match message.kind {
+            MessageKind::LimitOrderSubmitRequest {
                 quantity,
                 price,
                 symbol,
@@ -59,7 +59,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } => {
                 // FIXME:
                 log::info!(
-                    "received request to open {:?} limit order for {} {} at {}",
+                    "[service='{:?}' participant='{}'] received request to open {:?} limit order for {} {} at {}",
+                    message.service_id,
+                    message.participant_id,
                     side,
                     quantity,
                     symbol,
@@ -81,7 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[derive(Debug, Clone, Copy)]
 struct Config {
-    pub service_identifier: ServiceIdentifier,
+    pub service_identifier: ServiceId,
     pub multicast_address: Ipv4Addr,
     pub multicast_port: u16,
 }
@@ -89,7 +91,7 @@ struct Config {
 fn get_config_from_env() -> Result<Config, Box<dyn std::error::Error>> {
     Ok(Config {
         service_identifier: std::env::var("SERVICE_IDENTIFIER")
-            .map(|x| ServiceIdentifier::from_str(x.as_str()).unwrap())
+            .map(|x| ServiceId::from_str(x.as_str()).unwrap())
             .expect("missing required environment variable 'SERVICE_IDENTIFIER'"),
         multicast_address: std::env::var("MULTICAST_ADDRESS")
             .unwrap_or(DEFAULT_MULTICAST_ADDRESS.to_string())

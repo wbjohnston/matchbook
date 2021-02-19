@@ -76,11 +76,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 log::info!("read {} bytes from {}", n, addr);
 
                 let st = std::str::from_utf8(&buf[..n]).unwrap();
-                let command: Command = serde_json::from_str(st).unwrap();
-
+                // TODO(will): this needs to be replaced with message type specific to clients.
+                //              In the long run, these will be FIX messages. But in the short term they'll need to be some other format
+                let command: MessageKind = serde_json::from_str(st).unwrap();
                 {
                     match &command {
-                        Command::LimitOrderSubmitRequest {
+                        MessageKind::LimitOrderSubmitRequest {
                             symbol,
                             price,
                             quantity,
@@ -99,7 +100,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
 
-                match tx.send(command).await {
+                let message = Message {
+                    participant_id: participant_id,
+                    service_id: config.service_identifier,
+                    kind: command,
+                };
+
+                match tx.send(message).await {
                     Ok(_) => {
                         log::info!("successfully forwarded message UDP message handling thread")
                     }
@@ -115,7 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[derive(Debug, Clone, Copy)]
 struct Config {
-    pub service_identifier: ServiceIdentifier,
+    pub service_identifier: ServiceId,
     pub multicast_address: Ipv4Addr,
     pub multicast_port: u16,
 }
@@ -123,7 +130,7 @@ struct Config {
 fn get_config_from_env() -> Result<Config, Box<dyn std::error::Error>> {
     Ok(Config {
         service_identifier: std::env::var("SERVICE_IDENTIFIER")
-            .map(|x| ServiceIdentifier::from_str(x.as_str()).unwrap())
+            .map(|x| ServiceId::from_str(x.as_str()).unwrap())
             .expect("missing required environment variable 'SERVICE_IDENTIFIER'"),
 
         multicast_address: std::env::var("MULTICAST_ADDRESS")

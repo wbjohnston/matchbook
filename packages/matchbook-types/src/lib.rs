@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+pub type ParticipantId = u64;
 pub type Price = usize;
 pub type Quantity = usize;
 pub type SymbolOwned = String;
@@ -12,7 +13,14 @@ pub enum Side {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum Command {
+pub struct Message {
+    pub service_id: ServiceId,
+    pub participant_id: ParticipantId,
+    pub kind: MessageKind,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MessageKind {
     LimitOrderSubmitRequest {
         side: Side,
         price: Price,
@@ -22,28 +30,28 @@ pub enum Command {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct ServiceIdentifier {
+pub struct ServiceId {
     kind: ServiceKind,
     number: u16,
 }
 
-impl std::str::FromStr for ServiceIdentifier {
+impl std::str::FromStr for ServiceId {
     type Err = Box<dyn std::error::Error>;
     fn from_str(s: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> {
         let mut split = s.split(":");
         let kind = if let Some(kind) = split.next() {
             ServiceKind::from_str(kind)?
         } else {
-            return Err(format!("incorrectly formatted ServiceIdentifier '{}'", s).into());
+            return Err(format!("incorrectly formatted ServiceId '{}'", s).into());
         };
 
         let number = if let Some(num) = split.next() {
             num.parse()?
         } else {
-            return Err(format!("incorrectly formatted ServiceIdentifier '{}'", s).into());
+            return Err(format!("incorrectly formatted ServiceId '{}'", s).into());
         };
 
-        Ok(ServiceIdentifier { kind, number })
+        Ok(ServiceId { kind, number })
     }
 }
 
@@ -90,12 +98,12 @@ mod test {
     quickcheck! {
         fn can_parse_service_identifier_from_str(kind: ServiceKind, n: u16) -> bool {
             let s = format!("{}:{}", kind.as_str(), n);
-            ServiceIdentifier::from_str(&s).is_ok()
+            ServiceId::from_str(&s).is_ok()
         }
 
         fn cant_parse_unknown_service_identifier_from_str(n: u16) -> bool {
             let s = format!("unknown:{}", n);
-            ServiceIdentifier::from_str(&s).is_err()
+            ServiceId::from_str(&s).is_err()
         }
     }
 }
