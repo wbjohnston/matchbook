@@ -5,7 +5,7 @@ use matchbook_util::*;
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::str::FromStr;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::{TcpListener, UdpSocket};
 
 const DEFAULT_MULTICAST_ADDRESS: &'static str = "239.255.42.98";
@@ -24,39 +24,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let multi_addr = SocketAddrV4::new(config.multicast_address, config.multicast_port);
     let std_socket = bind_multicast(&addr, &multi_addr)?;
     let udp_socket = UdpSocket::from_std(std_socket)?;
-    let std_listen_socket = bind_multicast(&addr, &multi_addr)?;
-    let listen_socket = UdpSocket::from_std(std_listen_socket)?;
+    let udp_socket = std::sync::Arc::new(udp_socket);
     log::info!("bound to multicast on {}", udp_socket.local_addr()?);
 
     let (tx, mut rx) = tokio::sync::mpsc::channel(32);
 
-    // UDP listener 
-    tokio::spawn(async move {
-        let mut buf = [0; 1024];
-        while let Ok((n, addr)) = listen_socket.recv_from(&mut buf).await {
-            log::info!("received {} bytes from {}", n, addr);
-        }
-    });
+    {
+        let udp_socket = udp_socket.clone();
+        // UDP listener
+        tokio::spawn(async move {
+            let mut buf = [0; 1024];
+            while let Ok((n, addr)) = udp_socket.recv_from(&mut buf).await {
+                log::info!("READER received {} bytes from {}", n, addr);
+
+                let s = std::str::from_utf8(&buf).unwrap();
+                let message: Message = serde_json::from_str(&s[..n]).unwrap();
+                dbg!(&message);
+            }
+        });
+    }
 
     // UDP transmitter
-    tokio::spawn(async move {
-        while let Some(command) = rx.recv().await {
-            match udp_socket
-                .send_to(
-                    serde_json::to_string(&command).unwrap().as_bytes(),
-                    multi_addr,
-                )
-                .await
-            {
-                Ok(_) => {
-                    log::info!("successfully forwarded message to udp backbone");
-                }
-                Err(e) => {
-                    log::error!("failed to send message to udp backbone: {:?}", e);
+    {
+        let udp_socket = udp_socket.clone();
+        tokio::spawn(async move {
+            while let Some(command) = rx.recv().await {
+                match udp_socket
+                    .send_to(
+                        serde_json::to_string(&command).unwrap().as_bytes(),
+                        multi_addr,
+                    )
+                    .await
+                {
+                    Ok(_) => {
+                        log::info!("successfully forwarded message to udp backbone");
+                    }
+                    Err(e) => {
+                        log::error!("failed to send message to udp backbone: {:?}", e);
+                    }
                 }
             }
-        }
-    });
+        });
+    }
 
     let mut participant_id_map: HashMap<IpAddr, u64> = HashMap::new();
     let mut participant_counter = 0;
@@ -108,6 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 participant_id
                             );
                         }
+                        _ => continue,
                     }
                 }
 

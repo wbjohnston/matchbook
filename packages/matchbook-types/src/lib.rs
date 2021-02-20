@@ -6,7 +6,7 @@ pub type Quantity = usize;
 pub type SymbolOwned = String;
 pub type SymbolRef<'a> = &'a str;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Side {
     Bid,
     Ask,
@@ -22,6 +22,12 @@ pub struct Message {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MessageKind {
     LimitOrderSubmitRequest {
+        side: Side,
+        price: Price,
+        quantity: Quantity,
+        symbol: SymbolOwned,
+    },
+    LimitOrderSubmitRequestAcknowledge {
         side: Side,
         price: Price,
         quantity: Quantity,
