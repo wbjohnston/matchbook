@@ -24,10 +24,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let multi_addr = SocketAddrV4::new(config.multicast_address, config.multicast_port);
     let std_socket = bind_multicast(&addr, &multi_addr)?;
     let udp_socket = UdpSocket::from_std(std_socket)?;
+    let std_listen_socket = bind_multicast(&addr, &multi_addr)?;
+    let listen_socket = UdpSocket::from_std(std_listen_socket)?;
     log::info!("bound to multicast on {}", udp_socket.local_addr()?);
 
     let (tx, mut rx) = tokio::sync::mpsc::channel(32);
 
+    // UDP listener 
+    tokio::spawn(async move {
+        let mut buf = [0; 1024];
+        while let Ok((n, addr)) = listen_socket.recv_from(&mut buf).await {
+            log::info!("received {} bytes from {}", n, addr);
+        }
+    });
+
+    // UDP transmitter
     tokio::spawn(async move {
         while let Some(command) = rx.recv().await {
             match udp_socket
