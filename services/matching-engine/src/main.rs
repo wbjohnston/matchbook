@@ -76,7 +76,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         execution.price
                     )
                 });
+
+                let acknowledge_message = Message {
+                    kind: MessageKind::LimitOrderSubmitRequestAcknowledge {
+                        quantity,
+                        price,
+                        symbol,
+                        side,
+                    },
+                    ..message
+                };
+
+                let serialized_ack_message = serde_json::to_string(&acknowledge_message)?;
+                socket
+                    .send_to(serialized_ack_message.as_bytes(), multi_addr)
+                    .await?;
             }
+            _ => {}
         }
     }
 }

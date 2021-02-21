@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 tokio = {version = "1.2.0", features = ["full"]}
+tokio-util = {version = "0.6.3", features=["net", "codec"]}
 serde_json = "1.0"
 matchbook-types = { path = "../../packages/matchbook-types" }
 matchbook-util = { path = "../../packages/matchbook-util" }
