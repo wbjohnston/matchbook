@@ -33,3 +33,7 @@ docker-compose up --build
 ```
 
 This will start the project listening on `localhost:8080`
+
+### Architecture
+
+see [ARCHITECTURE.md](ARCHITECTURE.md)
