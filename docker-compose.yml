@@ -8,17 +8,24 @@ services:
     build: 
       dockerfile: services/port/Dockerfile
       context: .
+    networks: 
+      - backend
+    ports: 
+      - 8080:8080
     environment: 
       - RUST_LOG=debug
-    network_mode: host
   matching-engine:
+    networks: 
+      - backend
     environment: 
       - RUST_LOG=debug
     env_file: 
       - services/matching-engine/.env
       - .env
-    network_mode: host
     build: 
       context: .
       dockerfile: services/matching-engine/Dockerfile
 
+
+networks: 
+  backend:

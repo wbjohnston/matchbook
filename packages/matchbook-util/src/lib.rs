@@ -13,7 +13,7 @@ pub fn bind_multicast(
 
     socket.set_reuse_address(true)?;
     socket.bind(&socket2::SockAddr::from(*addr))?;
-    socket.set_multicast_loop_v4(true)?;
+    socket.set_multicast_loop_v4(false)?;
     socket.join_multicast_v4(multi_addr.ip(), addr.ip())?;
 
     Ok(socket.into_udp_socket())
