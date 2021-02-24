@@ -11,4 +11,6 @@ jobs:
               uses: actions/checkout@v2
             - name: build images 
               run: docker-compose build
+            - name: push images
+              run: docker-compose push
 

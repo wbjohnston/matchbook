@@ -2,6 +2,7 @@ version: '3.2'
 
 services: 
   port: 
+    image: wbjohnston/matchbook-port:latest
     env_file:
       - services/port/.env
       - .env
@@ -15,6 +16,7 @@ services:
     environment: 
       - RUST_LOG=debug
   matching-engine:
+    image: wbjohnston/matchbook-matching-engine:latest
     networks: 
       - backend
     environment: 
