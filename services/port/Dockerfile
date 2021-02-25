@@ -3,13 +3,18 @@ FROM rust:1.50-alpine3.12 as builder
 
 RUN apk add --no-cache musl-dev
 # WORKDIR /usr/src/
-# RUN cargo new port
 
 WORKDIR /usr/src/port
 COPY packages/ /usr/packages/
-COPY services/port/Cargo.toml services/port/Cargo.lock ./
+RUN cargo init --bin --name port
+COPY services/port/Cargo.lock ./Cargo.lock
+COPY services/port/Cargo.toml ./Cargo.toml
+RUN cargo build --release
+# RUN cargo build
+RUN rm src/*.rs
 # build and cache dependencies 
-COPY services/port/src/ src/
+COPY services/port/src ./src
+RUN rm ./target/release/deps/port*
 RUN cargo build --release
 
 FROM alpine:3.12
