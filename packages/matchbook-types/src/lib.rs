@@ -37,8 +37,8 @@ pub enum MessageKind {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ServiceId {
-    kind: ServiceKind,
-    number: u16,
+    pub kind: ServiceKind,
+    pub number: u16,
 }
 
 impl std::str::FromStr for ServiceId {

@@ -1,165 +1,150 @@
-use env_logger;
-use log;
+use error::Error;
+use futures::{SinkExt, StreamExt};
 use matchbook_types::*;
-use matchbook_util::*;
-use std::collections::HashMap;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
-use std::str::FromStr;
-use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
-use tokio::net::{TcpListener, UdpSocket};
+use matchbook_util::{bind_multicast, MatchbookCodec};
+use std::net::{SocketAddr, SocketAddrV4};
+use std::sync::Arc;
+use std::{collections::HashMap, error};
+use tokio::net::TcpListener;
+use tokio::sync::mpsc::Sender;
+use tokio::sync::RwLock;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::UdpSocket,
+};
+use tokio_util::udp::UdpFramed;
+use tracing::*;
 
-const DEFAULT_MULTICAST_ADDRESS: &'static str = "239.255.42.98";
-const DEFAULT_MULTICAST_PORT: &'static str = "50692";
+const DEFAULT_MULTICAST_ADDRESS: [u8; 4] = [239, 255, 42, 98];
+const DEFAULT_MULTICAST_PORT: u16 = 50692;
 const IP_ALL: [u8; 4] = [0, 0, 0, 0];
 
+type ParticipantChannelMap = Arc<RwLock<HashMap<ParticipantId, Sender<(Message, SocketAddr)>>>>;
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
-    let config = get_config_from_env()?;
-    let tcp_listener_addr: SocketAddrV4 = format!("0.0.0.0:{}", 8080).parse()?;
-    let tcp_listener = TcpListener::bind(tcp_listener_addr).await?;
-    log::info!("started listening for TCP clients on {}", tcp_listener_addr);
+async fn main() -> Result<(), Box<dyn Error>> {
+    tracing_subscriber::fmt::init();
+    let state: ParticipantChannelMap = Arc::new(RwLock::new(HashMap::new()));
+    let udp_socket = {
+        let socket = bind_multicast(
+            &SocketAddrV4::new(IP_ALL.into(), DEFAULT_MULTICAST_PORT.into()),
+            &SocketAddrV4::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT),
+        )?;
 
-    let addr = SocketAddrV4::new(IP_ALL.into(), config.multicast_port);
-    let multi_addr = SocketAddrV4::new(config.multicast_address, config.multicast_port);
-    let std_socket = bind_multicast(&addr, &multi_addr)?;
-    let udp_socket = UdpSocket::from_std(std_socket)?;
-    let udp_socket = std::sync::Arc::new(udp_socket);
-    log::info!("bound to multicast on {}", udp_socket.local_addr()?);
+        let socket = UdpSocket::from_std(socket)?;
 
-    let (tx, mut rx) = tokio::sync::mpsc::channel(32);
+        let socket = UdpFramed::new(socket, MatchbookCodec::new());
+        socket
+    };
 
-    {
-        let udp_socket = udp_socket.clone();
-        // UDP listener
+    let listener = TcpListener::bind("0.0.0.0:8080").await?;
+    let (udp_tx, mut udp_rx) = tokio::sync::mpsc::channel(32);
+
+    let (mut sink, mut stream) = udp_socket.split();
+
+    // A task responsible for handling incoming client connections
+    let client_listener_handle = {
+        let state = state.clone();
+        let udp_tx = udp_tx.clone();
         tokio::spawn(async move {
-            let mut buf = [0; 1024];
-            while let Ok((n, addr)) = udp_socket.recv_from(&mut buf).await {
-                log::info!("READER received {} bytes from {}", n, addr);
+            info!("started listening on {}", listener.local_addr().unwrap());
+            // every time someone new connects, we assign them a new ID. In the future this will be replaced by a session manager
+            let mut participant_id_counter = 0;
+            let state = state.clone();
+            while let Ok((stream, addr)) = listener.accept().await {
+                let span = span!(Level::DEBUG, "client_connection", ?addr);
+                let _enter = span.enter();
+                info!("accepted connection");
 
-                let s = std::str::from_utf8(&buf).unwrap();
-                let message: Message = serde_json::from_str(&s[..n]).unwrap();
-                dbg!(&message);
-            }
-        });
-    }
+                let udp_tx = udp_tx.clone();
+                let state = state.clone();
+                let participant_id = participant_id_counter;
+                participant_id_counter += 1;
 
-    // UDP transmitter
-    {
-        let udp_socket = udp_socket.clone();
-        tokio::spawn(async move {
-            while let Some(command) = rx.recv().await {
-                match udp_socket
-                    .send_to(
-                        serde_json::to_string(&command).unwrap().as_bytes(),
-                        multi_addr,
-                    )
-                    .await
-                {
-                    Ok(_) => {
-                        log::info!("successfully forwarded message to udp backbone");
-                    }
-                    Err(e) => {
-                        log::error!("failed to send message to udp backbone: {:?}", e);
-                    }
-                }
-            }
-        });
-    }
+                let (tx, mut rx) = tokio::sync::mpsc::channel(32);
+                state.write().await.insert(participant_id, tx);
+                tokio::spawn(async move {
+                    let (mut rd, mut wr) = stream.into_split();
 
-    let mut participant_id_map: HashMap<IpAddr, u64> = HashMap::new();
-    let mut participant_counter = 0;
+                    let listen_handle = tokio::spawn(async move {
+                        let udp_tx = udp_tx.clone();
+                        let mut buf = vec![0; 1024 * 1024];
+                        while let Ok(n) = rd.read(&mut buf).await {
+                            if n == 0 {
+                                break;
+                            }
 
-    loop {
-        let (mut socket, addr) = tcp_listener.accept().await?;
-        // TODO(will): this participant id generation needs to be smarter and will eventually
-        //              need to associate participant ids with account ids
-        let participant_id = if let Some(id) = participant_id_map.get(&addr.ip()) {
-            id.clone()
-        } else {
-            let participant_id = participant_counter;
-            participant_counter += 1;
-            participant_id_map.insert(addr.ip(), participant_id);
-            participant_id
-        };
+                            let mut message: Message = match serde_json::from_slice(&buf[..n]) {
+                                Ok(message) => message,
+                                Err(e) => {
+                                    warn!("failed to deserialize message: {}", e);
+                                    continue;
+                                }
+                            };
 
-        let tx = tx.clone();
-        tokio::spawn(async move {
-            let mut buf = vec![0; 1024];
-            loop {
-                let n = match socket.read(&mut buf).await {
-                    Ok(n) if n == 0 => return,
-                    Ok(n) => n,
-                    _ => unimplemented!(),
-                };
+                            message.participant_id = participant_id;
 
-                log::info!("read {} bytes from {}", n, addr);
-
-                let st = std::str::from_utf8(&buf[..n]).unwrap();
-                // TODO(will): this needs to be replaced with message type specific to clients.
-                //              In the long run, these will be FIX messages. But in the short term they'll need to be some other format
-                let command: MessageKind = serde_json::from_str(st).unwrap();
-                {
-                    match &command {
-                        MessageKind::LimitOrderSubmitRequest {
-                            symbol,
-                            price,
-                            quantity,
-                            side,
-                        } => {
-                            log::info!(
-                                "received limit order submit request to {:?} {} {} at {} from client at {} with participant id {}",
-                                side,
-                                symbol,
-                                quantity,
-                                price,
-                                addr,
-                                participant_id
-                            );
+                            udp_tx
+                                .send((message, addr))
+                                .await
+                                .expect("failed the send message to backbone transmitter");
                         }
-                        _ => continue,
-                    }
-                }
+                    });
 
-                let message = Message {
-                    participant_id: participant_id,
-                    service_id: config.service_identifier,
-                    kind: command,
-                };
+                    let sender_handle = tokio::spawn(async move {
+                        while let Some(message) = rx.recv().await {
+                            // FIXME(will): bad allocation
+                            let buf = serde_json::to_vec(&message).unwrap();
+                            wr.write_all(&buf[..])
+                                .await
+                                .expect("failed to write message to client")
+                        }
+                    });
 
-                match tx.send(message).await {
-                    Ok(_) => {
-                        log::info!("successfully forwarded message UDP message handling thread")
-                    }
-                    Err(e) => log::error!(
-                        "failed to forward message to UDP message handling thread: {}",
-                        e
-                    ),
-                }
+                    tokio::join!(listen_handle, sender_handle)
+                });
             }
-        });
-    }
-}
+        })
+    };
 
-#[derive(Debug, Clone, Copy)]
-struct Config {
-    pub service_identifier: ServiceId,
-    pub multicast_address: Ipv4Addr,
-    pub multicast_port: u16,
-}
+    //A task that listens for inbound multicast packets and forwards them to the applicable client handler
+    let multicast_rx_handle = tokio::spawn(async move {
+        let state = state.clone();
+        while let Some(Ok((Some(message), addr))) = stream.next().await {
+            let span = span!(Level::DEBUG, "udp_listener", message.participant_id);
+            let _enter = span.enter();
+            if let Some(tx) = state.read().await.get(&message.participant_id).cloned() {
+                debug!("received message",);
+                tx.send((message, addr))
+                    .await
+                    .expect("failed to send to backbone");
+                trace!("message forwarded to client connection handler");
+            } else {
+                warn!("message meant for invalid participant");
+            }
+        }
+    });
 
-fn get_config_from_env() -> Result<Config, Box<dyn std::error::Error>> {
-    Ok(Config {
-        service_identifier: std::env::var("SERVICE_IDENTIFIER")
-            .map(|x| ServiceId::from_str(x.as_str()).unwrap())
-            .expect("missing required environment variable 'SERVICE_IDENTIFIER'"),
+    // A task that waits for messages from clients to be published via multicast
+    let multicast_tx_handle = tokio::spawn(async move {
+        let span = debug_span!("udp_sender");
+        let _handle = span.enter();
+        while let Some((message, addr)) = udp_rx.recv().await {
+            debug!(addr = ?addr, participant_id = message.participant_id, "received message");
+            let multicast_addr =
+                SocketAddr::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT);
+            sink.send((message, multicast_addr))
+                .await
+                .expect("failed to send to backbone");
+            trace!("message sent to client");
+        }
+    });
 
-        multicast_address: std::env::var("MULTICAST_ADDRESS")
-            .unwrap_or(DEFAULT_MULTICAST_ADDRESS.to_string())
-            .parse()?,
+    tokio::try_join!(
+        client_listener_handle,
+        multicast_rx_handle,
+        multicast_tx_handle
+    )?;
 
-        multicast_port: std::env::var("MULTICAST_PORT")
-            .unwrap_or(DEFAULT_MULTICAST_PORT.to_string())
-            .parse()?,
-    })
+    Ok(())
 }
