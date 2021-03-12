@@ -8,10 +8,12 @@ publish = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+futures = "0.3.13"
+parking_lot = "0.11.1"
 tokio = {version = "1.2.0", features = ["full"]}
 tokio-util = {version = "0.6.3", features=["net", "codec"]}
 serde_json = "1.0"
 matchbook-types = { path = "../../packages/matchbook-types" }
 matchbook-util = { path = "../../packages/matchbook-util" }
-log = "0.4"
-env_logger = "0.8.2"
+tracing = "0.1"
+tracing-subscriber="0.2"

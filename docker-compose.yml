@@ -13,7 +13,7 @@ services:
     ports: 
       - 8080:8080
     environment: 
-      - RUST_LOG=debug
+      - RUST_LOG=TRACE
   matching-engine:
     networks: 
       - backend
