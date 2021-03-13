@@ -31,7 +31,7 @@ impl Encoder<Message> for MatchbookCodec {
 }
 
 impl Decoder for MatchbookCodec {
-    type Item = Option<Message>;
+    type Item = Message;
 
     type Error = std::io::Error;
 
@@ -39,9 +39,9 @@ impl Decoder for MatchbookCodec {
         if src.is_empty() {
             Ok(None)
         } else {
-            let message = serde_json::from_slice(src).map(Some).unwrap_or(None);
+            let maybe_message = serde_json::from_slice(src).map(Some).map_err(|e| e.into());
             src.clear();
-            Ok(message)
+            maybe_message
         }
     }
 }

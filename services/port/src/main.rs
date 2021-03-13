@@ -6,12 +6,9 @@ use std::net::{SocketAddr, SocketAddrV4};
 use std::sync::Arc;
 use std::{collections::HashMap, error};
 use tokio::net::TcpListener;
+use tokio::net::UdpSocket;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::RwLock;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::UdpSocket,
-};
 use tokio_util::udp::UdpFramed;
 use tracing::*;
 
@@ -64,44 +61,39 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let (tx, mut rx) = tokio::sync::mpsc::channel(32);
                 state.write().await.insert(participant_id, tx);
                 tokio::spawn(async move {
-                    let (mut rd, mut wr) = stream.into_split();
+                    let framed = tokio_util::codec::Framed::new(stream, MatchbookCodec::new());
+                    let (mut sink, mut stream) = framed.split();
 
                     let listen_handle = tokio::spawn(async move {
                         let udp_tx = udp_tx.clone();
-                        let mut buf = vec![0; 1024 * 1024];
-                        while let Ok(n) = rd.read(&mut buf).await {
-                            if n == 0 {
-                                break;
-                            }
+                        loop {
+                            match stream.next().await {
+                                Some(Ok(mut message)) => {
+                                    message.topic_id = participant_id;
 
-                            let mut message: Message = match serde_json::from_slice(&buf[..n]) {
-                                Ok(message) => message,
-                                Err(e) => {
-                                    warn!("failed to deserialize message: {}", e);
-                                    continue;
+                                    udp_tx
+                                        .send((message, addr))
+                                        .await
+                                        .expect("failed the send message to backbone transmitter");
                                 }
-                            };
-
-                            message.participant_id = participant_id;
-
-                            udp_tx
-                                .send((message, addr))
-                                .await
-                                .expect("failed the send message to backbone transmitter");
+                                None => break,
+                                x => warn!("{:?}", x),
+                            }
                         }
                     });
 
                     let sender_handle = tokio::spawn(async move {
-                        while let Some(message) = rx.recv().await {
-                            // FIXME(will): bad allocation
-                            let buf = serde_json::to_vec(&message).unwrap();
-                            wr.write_all(&buf[..])
+                        while let Some((message, _addr)) = rx.recv().await {
+                            sink.send(message)
                                 .await
                                 .expect("failed to write message to client")
                         }
                     });
 
-                    tokio::join!(listen_handle, sender_handle)
+                    tokio::select! {
+                        _ = listen_handle => {},
+                        _ = sender_handle => {}
+                    }
                 });
             }
         })
@@ -110,10 +102,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //A task that listens for inbound multicast packets and forwards them to the applicable client handler
     let multicast_rx_handle = tokio::spawn(async move {
         let state = state.clone();
-        while let Some(Ok((Some(message), addr))) = stream.next().await {
-            let span = span!(Level::DEBUG, "udp_listener", message.participant_id);
+        while let Some(Ok((message, addr))) = stream.next().await {
+            let span = span!(Level::DEBUG, "udp_listener", message.topic_id);
             let _enter = span.enter();
-            if let Some(tx) = state.read().await.get(&message.participant_id).cloned() {
+            if let Some(tx) = state.read().await.get(&message.topic_id).cloned() {
                 debug!("received message",);
                 tx.send((message, addr))
                     .await
@@ -130,7 +122,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let span = debug_span!("udp_sender");
         let _handle = span.enter();
         while let Some((message, addr)) = udp_rx.recv().await {
-            debug!(addr = ?addr, participant_id = message.participant_id, "received message");
+            debug!(addr = ?addr, participant_id = message.topic_id, "received message");
             let multicast_addr =
                 SocketAddr::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT);
             sink.send((message, multicast_addr))
