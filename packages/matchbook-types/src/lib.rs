@@ -1,10 +1,12 @@
 use serde::{Deserialize, Serialize};
+use serde_with;
 
+pub type AccountId = u64;
 pub type ParticipantId = u64;
 pub type Price = usize;
 pub type Quantity = usize;
-pub type SymbolOwned = String;
-pub type SymbolRef<'a> = &'a str;
+pub type SymbolOwned = [char; 4];
+pub type SymbolRef<'a> = &'a SymbolOwned;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum Side {
@@ -14,8 +16,10 @@ pub enum Side {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
-    pub service_id: ServiceId,
-    pub participant_id: ParticipantId,
+    pub publisher_id: ServiceId,
+    pub topic_id: ParticipantId,
+    /// Sequence number
+    pub seq_n: u64,
     pub kind: MessageKind,
 }
 
@@ -96,7 +100,7 @@ mod test {
 
     impl quickcheck::Arbitrary for ServiceKind {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-            let choices = [ServiceKind::Port];
+            let choices = [ServiceKind::Port, ServiceKind::MatchingEngine];
             g.choose(&choices).unwrap().clone()
         }
     }
