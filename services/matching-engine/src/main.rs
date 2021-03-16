@@ -46,8 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         side,
                     } => {
                         info!(
-                            ?message.publisher_id,
-                            ?message.topic_id,
+                            ?message.id,
                             ?side,
                             quantity,
                             ?symbol,

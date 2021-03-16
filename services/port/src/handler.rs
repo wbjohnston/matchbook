@@ -83,8 +83,16 @@ pub async fn spawn_client_handler(
         loop {
             match stream.next().await {
                 Some(Ok(message)) => {
-                    let message =
-                        message::fix_message_into_matchbook_message(message, context.service_id);
+                    let message = match message::fix_message_into_matchbook_message(
+                        message,
+                        context.service_id,
+                    ) {
+                        Ok(message) => message,
+                        Err(e) => {
+                            warn!("{}", e);
+                            continue;
+                        }
+                    };
 
                     udp_tx
                         .send((message, addr))
@@ -142,7 +150,7 @@ pub async fn spawn_multicast_rx_handler<S>(
     S: Stream<Item = Result<(Message, SocketAddr), std::io::Error>> + Unpin + std::fmt::Debug,
 {
     while let Some(Ok((message, addr))) = stream.next().await {
-        if let Some(tx) = state.read().await.get(&message.topic_id).cloned() {
+        if let Some(tx) = state.read().await.get(&message.id.topic_id).cloned() {
             debug!("received message",);
             tx.send((message, addr))
                 .await
@@ -164,7 +172,7 @@ pub async fn spawn_multicast_tx_handler<S>(
 {
     let multicast_addr = context.multicast_addr;
     while let Some((message, addr)) = rx.recv().await {
-        debug!(addr = ?addr, participant_id = ?message.topic_id, "received message");
+        debug!(?message.id, "received message");
         sink.send((message, multicast_addr))
             .await
             .expect("failed to send to backbone");

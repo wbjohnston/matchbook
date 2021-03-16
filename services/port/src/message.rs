@@ -1,18 +1,24 @@
 use fixer_upper::{Message as FixMessage, MessageType as FixMessageType};
 use matchbook_types::*;
 
-pub fn fix_message_into_matchbook_message(msg: FixMessage, service_id: ServiceId) -> Message {
+pub fn fix_message_into_matchbook_message(
+    msg: FixMessage,
+    service_id: ServiceId,
+) -> Result<Message, Box<dyn std::error::Error>> {
     use FixMessageType::*;
     use MessageKind::*;
 
-    // TODO(will): handle when this is null
-    let symbol = msg.body.symbol.unwrap();
+    let symbol = msg.body.symbol.ok_or("missing required field 'Symbol'")?;
 
-    match msg.header.msg_type {
+    Ok(match msg.header.msg_type {
         NewOrderSingle => Message {
             kind: LimitOrderSubmitRequest {
-                price: msg.body.price.unwrap() as Price,
-                quantity: msg.body.order_qty.unwrap() as Quantity,
+                price: msg.body.price.ok_or("missing required field 'Price'")? as Price,
+                quantity: msg
+                    .body
+                    .order_qty
+                    .ok_or("missing required field 'OrderQty'")?
+                    as Quantity,
                 side: Side::Bid,
                 symbol: [
                     symbol.chars().nth(0).unwrap(),
@@ -21,13 +27,15 @@ pub fn fix_message_into_matchbook_message(msg: FixMessage, service_id: ServiceId
                     symbol.chars().nth(3).unwrap(),
                 ],
             },
-            publisher_id: service_id,
+            id: MessageId {
+                publisher_id: service_id,
+                topic_id: msg.header.sender_comp_id,
+                topic_sequence_n: msg.header.msg_seq_num,
+            },
             sending_time: msg.header.sending_time,
-            topic_id: msg.header.sender_comp_id,
-            seq_n: msg.header.msg_seq_num,
         },
         x => unimplemented!("{:?}", x),
-    }
+    })
 }
 
 pub fn matchbook_message_into_fix_message(msg: Message) -> FixMessage {
@@ -44,12 +52,12 @@ pub fn matchbook_message_into_fix_message(msg: Message) -> FixMessage {
                 body_length: None,
                 msg_type: FixMessageType::NewOrderSingle,
                 sender_comp_id: String::from("matchbook"),
-                target_comp_id: format!("{}", msg.topic_id),
-                msg_seq_num: msg.seq_n,
+                target_comp_id: format!("{}", msg.id.topic_id),
+                msg_seq_num: msg.id.topic_sequence_n,
                 sending_time: msg.sending_time,
             },
             body: fixer_upper::Body {
-                cl_ord_id: Some(format!("{}", msg.topic_id)),
+                cl_ord_id: Some(format!("{}", msg.id.topic_id)),
                 handl_inst: Some(fixer_upper::HandleInstruction::ManualOrderBestExecution),
                 symbol: Some(symbol.iter().collect()),
                 side: Some(match side {
