@@ -1,4 +1,4 @@
-name: build-all-projects
+name: validate-all-projects
 # on:
 #     push:
 #         branches:
@@ -10,7 +10,7 @@ name: build-all-projects
 on: [push]
 
 jobs:
-    build:
+    validate:
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
