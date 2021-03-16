@@ -1,3 +1,4 @@
+#![deny(clippy::all)]
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -31,7 +32,7 @@ impl std::str::FromStr for MessageId {
     type Err = Box<dyn std::error::Error>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut groups = s.split(".");
+        let mut groups = s.split('.');
 
         let (publisher_id, topic_id, topic_sequence_n) = groups
             .next_tuple()
