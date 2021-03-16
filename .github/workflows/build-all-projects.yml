@@ -1,0 +1,35 @@
+name: build-all-projects
+# on:
+#     push:
+#         branches:
+#             - main
+#     pull_request:
+#         branches:
+#             - main
+
+on: [push]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                project-dir: [
+                    services/matching-engine
+                    services/port
+                    services/retransmitter
+                    packages/matchbook-util
+                    packages/fixer-upper
+                ]
+        steps:
+            - uses: actions/checkout@v2
+            - uses: actions-rs/toolchain@v1
+              with:
+                toolchain: stable
+                default: true
+                override: true
+            - name: build
+              run: cargo build
+            #   working-directory: ${{ matrix.project-dir }}
+                
+
