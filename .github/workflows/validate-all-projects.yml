@@ -10,7 +10,30 @@ name: validate-all-projects
 on: [push]
 
 jobs:
-    validate:
+    build:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                project-dir: [
+                    ./services/matching-engine,
+                    ./services/port,
+                    ./services/retransmitter,
+                    ./packages/matchbook-util,
+                    ./packages/matchbook-types,
+                    ./packages/fixer-upper
+                ]
+        steps:
+            - uses: actions/checkout@v2
+            - uses: actions-rs/toolchain@v1
+              with:
+                toolchain: 1.50.0
+                default: true
+                override: true
+            - name: build
+              run: cargo build
+              working-directory: ${{ matrix.project-dir }}
+    lint:
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
@@ -31,17 +54,29 @@ jobs:
                 default: true
                 override: true
                 components: rustfmt, clippy
-            - uses: Swatinem/rust-cache@v1
-              with:
-                working-directory: ${{ matrix.project-dir }}
             - name: lint
               working-directory: ${{ matrix.project-dir }}
               run: cargo clippy --all-targets --all-features -- -D warnings
-            - name: build
-              run: cargo build
-              working-directory: ${{ matrix.project-dir }}
+    test:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                project-dir: [
+                    ./services/matching-engine,
+                    ./services/port,
+                    ./services/retransmitter,
+                    ./packages/matchbook-util,
+                    ./packages/matchbook-types,
+                    ./packages/fixer-upper
+                ]
+        steps:
+            - uses: actions/checkout@v2
+            - uses: actions-rs/toolchain@v1
+              with:
+                toolchain: 1.50.0
+                default: true
+                override: true
             - name: test
               run: cargo test
               working-directory: ${{ matrix.project-dir }}
-                
-
