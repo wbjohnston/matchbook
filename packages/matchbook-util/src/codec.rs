@@ -3,7 +3,7 @@ use fixer_upper::Message as FixMessage;
 use matchbook_types::*;
 use tokio_util::codec::{Decoder, Encoder};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MatchbookMessageCodec {
     buf: Vec<u8>,
 }
@@ -47,6 +47,7 @@ impl Decoder for MatchbookMessageCodec {
     }
 }
 
+#[derive(Debug, Clone, Default)]
 pub struct FixJsonCodec {
     buf: Vec<u8>,
 }

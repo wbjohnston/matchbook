@@ -25,9 +25,9 @@ pub async fn spawn_listen_handler<'a>(
         let udp_tx = udp_tx.clone();
         let state = state.clone();
 
-        tokio::spawn(async move {
-            spawn_client_handler(stream.into(), udp_tx, addr, state, context).await
-        });
+        tokio::spawn(
+            async move { spawn_client_handler(stream, udp_tx, addr, state, context).await },
+        );
     }
 }
 
@@ -138,7 +138,7 @@ pub async fn spawn_client_handler(
     state.write().await.insert(participant_id, participant_tx);
     info!("user authenticated and ready to receive messages");
 
-    tokio::try_join!(listen_handle, sender_handle);
+    tokio::try_join!(listen_handle, sender_handle).unwrap();
 }
 
 #[tracing::instrument]
@@ -171,7 +171,7 @@ pub async fn spawn_multicast_tx_handler<S>(
     S: Sink<(Message, SocketAddr), Error = Box<dyn std::error::Error>> + Unpin + std::fmt::Debug,
 {
     let multicast_addr = context.multicast_addr;
-    while let Some((message, addr)) = rx.recv().await {
+    while let Some((message, _addr)) = rx.recv().await {
         debug!(?message.id, "received message");
         sink.send((message, multicast_addr))
             .await

@@ -16,3 +16,4 @@ tokio = {version = "1.2.0", features = ["full"]}
 tokio-util = {version = "0.6.3", features=["net", "codec"]}
 tracing = "0.1"
 tracing-subscriber="0.2"
+itertools = "0.10"

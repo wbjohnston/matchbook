@@ -419,6 +419,7 @@ version = "0.1.0"
 dependencies = [
  "fixer-upper",
  "futures",
+ "itertools",
  "matchbook-types",
  "matchbook-util",
  "tokio",

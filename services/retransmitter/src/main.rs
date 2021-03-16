@@ -1,3 +1,4 @@
+#![deny(clippy::all)]
 use {
     futures::{SinkExt, StreamExt},
     matchbook_types::*,
@@ -22,14 +23,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let udp_socket = {
         let socket = bind_multicast(
-            &SocketAddrV4::new(IP_ALL.into(), DEFAULT_MULTICAST_PORT.into()),
+            &SocketAddrV4::new(IP_ALL.into(), DEFAULT_MULTICAST_PORT),
             &SocketAddrV4::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT),
         )?;
 
         let socket = UdpSocket::from_std(socket)?;
 
-        let socket = UdpFramed::new(socket, MatchbookMessageCodec::new());
-        socket
+        UdpFramed::new(socket, MatchbookMessageCodec::new())
     };
 
     info!("started listening");
@@ -61,6 +61,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => continue,
         }
     }
-
-    Ok(())
 }

@@ -1,3 +1,4 @@
+#![deny(clippy::all)]
 use matchbook_types::*;
 use std::cmp::Reverse;
 use std::{
@@ -125,14 +126,14 @@ impl Book {
                 break 'matching;
             }
 
-            match self.bids.peek().clone() {
+            match self.bids.peek() {
                 Some(Reverse(bid)) if bid.is_filled() => {
                     self.bids.pop();
                 }
                 _ => {}
             };
 
-            match self.asks.peek().clone() {
+            match self.asks.peek() {
                 Some(ask) if ask.is_filled() => {
                     self.asks.pop();
                 }
