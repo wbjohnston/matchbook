@@ -30,6 +30,7 @@ jobs:
                 toolchain: stable
                 default: true
                 override: true
+            - uses: Swatinem/rust-cache@v1
             - name: build
               run: cargo build
               working-directory: ${{ matrix.project-dir }}
