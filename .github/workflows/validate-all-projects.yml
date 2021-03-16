@@ -33,6 +33,7 @@ jobs:
                 components: rustfmt, clippy
             - uses: Swatinem/rust-cache@v1
             - name: lint
+              working-directory: ${{ matrix.project-dir }}
               run: cargo check
             - name: build
               run: cargo build
