@@ -14,3 +14,4 @@ quickcheck = "1.0.3"
 serde = {version="1.0.124", features=["derive"]}
 serde_with = "1.6.4"
 chrono = {version = "0.4.19", features=["serde"]}
+itertools = "0.10"

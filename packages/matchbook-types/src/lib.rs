@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 
@@ -10,22 +11,58 @@ pub type Quantity = usize;
 pub type SymbolOwned = [char; 4];
 pub type SymbolRef<'a> = &'a SymbolOwned;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum Side {
-    Bid,
-    Ask,
-}
-
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     #[serde_as(as = "DisplayFromStr")]
-    pub publisher_id: ServiceId,
+    pub id: MessageId,
     pub sending_time: UtcTimeStamp,
-    pub topic_id: ParticipantId,
-    /// Sequence number
-    pub seq_n: u64,
     pub kind: MessageKind,
+}
+
+#[derive(Debug, Clone, Hash)]
+pub struct MessageId {
+    pub publisher_id: ServiceId,
+    pub topic_id: String,
+    pub topic_sequence_n: u64,
+}
+
+impl std::str::FromStr for MessageId {
+    type Err = Box<dyn std::error::Error>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut groups = s.split(".");
+
+        let (publisher_id, topic_id, topic_sequence_n) = groups
+            .next_tuple()
+            .ok_or("insufficient number of elements in message id")?;
+
+        let publisher_id = ServiceId::from_str(publisher_id)?;
+        let topic_id = topic_id.to_string();
+        let topic_sequence_n = topic_sequence_n.parse()?;
+
+        Ok(MessageId {
+            publisher_id,
+            topic_id,
+            topic_sequence_n,
+        })
+    }
+}
+
+impl std::fmt::Display for MessageId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}.{}.{}",
+            self.publisher_id, self.topic_id, self.topic_sequence_n
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum Side {
+    Bid,
+    Ask,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,7 +81,7 @@ pub enum MessageKind {
     },
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Hash)]
 pub struct ServiceId {
     pub kind: ServiceKind,
     pub number: u16,
@@ -76,19 +113,10 @@ impl std::str::FromStr for ServiceId {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Hash)]
 pub enum ServiceKind {
     Port,
     MatchingEngine,
-}
-
-impl ServiceKind {
-    pub fn as_str<'a>(self) -> &'a str {
-        match self {
-            ServiceKind::Port => "port",
-            ServiceKind::MatchingEngine => "matching-engine",
-        }
-    }
 }
 
 impl std::str::FromStr for ServiceKind {
@@ -130,7 +158,7 @@ mod test {
 
     quickcheck! {
         fn can_parse_service_identifier_from_str(kind: ServiceKind, n: u16) -> bool {
-            let s = format!("{}:{}", kind.as_str(), n);
+            let s = format!("{}:{}", kind, n);
             ServiceId::from_str(&s).is_ok()
         }
 
