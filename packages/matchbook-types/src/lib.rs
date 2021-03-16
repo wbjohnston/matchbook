@@ -12,7 +12,7 @@ pub type SymbolOwned = [char; 4];
 pub type SymbolRef<'a> = &'a SymbolOwned;
 
 #[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Message {
     #[serde_as(as = "DisplayFromStr")]
     pub id: MessageId,
@@ -20,7 +20,7 @@ pub struct Message {
     pub kind: MessageKind,
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageId {
     pub publisher_id: ServiceId,
     pub topic_id: String,
@@ -59,13 +59,13 @@ impl std::fmt::Display for MessageId {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Side {
     Bid,
     Ask,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum MessageKind {
     LimitOrderSubmitRequest {
         side: Side,
@@ -79,9 +79,10 @@ pub enum MessageKind {
         quantity: Quantity,
         symbol: SymbolOwned,
     },
+    RetransmitRequest,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct ServiceId {
     pub kind: ServiceKind,
     pub number: u16,
@@ -113,7 +114,7 @@ impl std::str::FromStr for ServiceId {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub enum ServiceKind {
     Port,
     MatchingEngine,
