@@ -12,3 +12,4 @@ socket2 = { version = "0.3.4", features = ["reuseport"] }
 bytes = "1"
 tokio-util = {version = "0.6.4", features = ["codec"]}
 serde_json = "1.0"
+fixer-upper = { path = "../fixer-upper"}

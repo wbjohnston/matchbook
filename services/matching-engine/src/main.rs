@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             &SocketAddrV4::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT),
         )?;
         let socket = UdpSocket::from_std(socket)?;
-        let socket = UdpFramed::new(socket, MatchbookCodec::new());
+        let socket = UdpFramed::new(socket, MatchbookMessageCodec::new());
         socket.split()
     };
 
@@ -30,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut engine = MatchingEngine::default();
 
     engine.create_symbol(['A', 'D', 'B', 'E']);
-    engine.create_symbol(['C', 'O', 'I', 'N']); // hire me plz
+    engine.create_symbol(['C', 'O', 'I', 'N']);
     debug!("loaded symbols");
 
     loop {
@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     } => {
                         info!(
                             ?message.publisher_id,
-                            message.topic_id,
+                            ?message.topic_id,
                             ?side,
                             quantity,
                             ?symbol,

@@ -1,8 +1,10 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_with;
+use serde_with::{serde_as, DisplayFromStr};
 
+pub type UtcTimeStamp = DateTime<Utc>;
 pub type AccountId = u64;
-pub type ParticipantId = u64;
+pub type ParticipantId = String;
 pub type Price = usize;
 pub type Quantity = usize;
 pub type SymbolOwned = [char; 4];
@@ -14,9 +16,12 @@ pub enum Side {
     Ask,
 }
 
+#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
+    #[serde_as(as = "DisplayFromStr")]
     pub publisher_id: ServiceId,
+    pub sending_time: UtcTimeStamp,
     pub topic_id: ParticipantId,
     /// Sequence number
     pub seq_n: u64,
@@ -43,6 +48,12 @@ pub enum MessageKind {
 pub struct ServiceId {
     pub kind: ServiceKind,
     pub number: u16,
+}
+
+impl std::fmt::Display for ServiceId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.kind, self.number)
+    }
 }
 
 impl std::str::FromStr for ServiceId {
@@ -89,6 +100,18 @@ impl std::str::FromStr for ServiceKind {
             "matching-engine" => Ok(ServiceKind::MatchingEngine),
             unknown => Err(format!("service kind '{}' is unknown", unknown).into()),
         }
+    }
+}
+
+impl std::fmt::Display for ServiceKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use ServiceKind::*;
+        let s = match self {
+            Port => "port",
+            MatchingEngine => "matching-engine",
+        };
+
+        write!(f, "{}", s)
     }
 }
 

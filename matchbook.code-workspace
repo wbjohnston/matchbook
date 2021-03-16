@@ -19,6 +19,10 @@
 		{
 			"name": "package:matchbook-util",
 			"path": "./packages/matchbook-util"
+		},
+		{
+			"name": "package:fixer-upper",
+			"path": "./packages/fixer-upper"
 		}
 	],
 	"settings": {}
