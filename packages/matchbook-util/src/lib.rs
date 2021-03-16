@@ -1,95 +1,6 @@
-use bytes::{BufMut, BytesMut};
-use fixer_upper::Message as FixMessage;
-use matchbook_types::*;
 use std::net::SocketAddrV4;
-use tokio_util::codec::{Decoder, Encoder};
-
-#[derive(Debug, Clone)]
-pub struct MatchbookMessageCodec {
-    buf: Vec<u8>,
-}
-
-impl MatchbookMessageCodec {
-    pub fn new() -> Self {
-        Self {
-            buf: Vec::with_capacity(1024),
-        }
-    }
-}
-
-impl Encoder<Message> for MatchbookMessageCodec {
-    type Error = Box<dyn std::error::Error>;
-
-    fn encode(
-        &mut self,
-        item: Message,
-        dst: &mut BytesMut,
-    ) -> Result<(), <Self as Encoder<Message>>::Error> {
-        serde_json::to_writer(&mut self.buf, &item)?;
-        dst.put(&self.buf[..self.buf.len()]);
-        self.buf.clear();
-        Ok(())
-    }
-}
-
-impl Decoder for MatchbookMessageCodec {
-    type Item = Message;
-
-    type Error = std::io::Error;
-
-    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if src.is_empty() {
-            Ok(None)
-        } else {
-            let maybe_message = serde_json::from_slice(src).map(Some).map_err(|e| e.into());
-            src.clear();
-            maybe_message
-        }
-    }
-}
-
-pub struct FixJsonCodec {
-    buf: Vec<u8>,
-}
-
-impl FixJsonCodec {
-    pub fn new() -> Self {
-        Self {
-            buf: Vec::with_capacity(1024),
-        }
-    }
-}
-
-impl Encoder<FixMessage> for FixJsonCodec {
-    type Error = Box<dyn std::error::Error>;
-
-    fn encode(
-        &mut self,
-        item: FixMessage,
-        dst: &mut BytesMut,
-    ) -> Result<(), <Self as Encoder<FixMessage>>::Error> {
-        serde_json::to_writer(&mut self.buf, &item)?;
-        dst.put(&self.buf[..self.buf.len()]);
-        self.buf.clear();
-        Ok(())
-    }
-}
-
-impl Decoder for FixJsonCodec {
-    type Item = FixMessage;
-
-    type Error = std::io::Error;
-
-    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if src.is_empty() {
-            Ok(None)
-        } else {
-            let maybe_message = serde_json::from_slice(src).map(Some).map_err(|e| e.into());
-            src.clear();
-            maybe_message
-        }
-    }
-}
+pub mod codec;
+pub use codec::*;
 
 /// Bind socket to multicast address with IP_MULTICAST_LOOP and SO_REUSEADDR Enabled
 pub fn bind_multicast(
@@ -109,12 +20,4 @@ pub fn bind_multicast(
     socket.join_multicast_v4(multi_addr.ip(), addr.ip())?;
 
     Ok(socket.into_udp_socket())
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
 }
