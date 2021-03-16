@@ -25,9 +25,9 @@ pub async fn spawn_listen_handler<'a>(
         let udp_tx = udp_tx.clone();
         let state = state.clone();
 
-        tokio::spawn(async move {
-            spawn_client_handler(stream.into(), udp_tx, addr, state, context).await
-        });
+        tokio::spawn(
+            async move { spawn_client_handler(stream, udp_tx, addr, state, context).await },
+        );
     }
 }
 

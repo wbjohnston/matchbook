@@ -43,14 +43,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let state: ParticipantChannelMap = Arc::new(RwLock::new(HashMap::new()));
     let udp_socket = {
         let socket = bind_multicast(
-            &SocketAddrV4::new(IP_ALL.into(), DEFAULT_MULTICAST_PORT.into()),
+            &SocketAddrV4::new(IP_ALL.into(), DEFAULT_MULTICAST_PORT),
             &SocketAddrV4::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT),
         )?;
 
         let socket = UdpSocket::from_std(socket)?;
 
-        let socket = UdpFramed::new(socket, MatchbookMessageCodec::new());
-        socket
+        UdpFramed::new(socket, MatchbookMessageCodec::new())
     };
 
     let (udp_tx, udp_rx) = tokio::sync::mpsc::channel(32);
@@ -72,10 +71,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         tokio::spawn(async move { spawn_multicast_rx_handler(stream, state, context).await })
     };
 
-    let multicast_tx_handle = {
-        let context = context.clone();
-        tokio::spawn(async move { spawn_multicast_tx_handler(sink, udp_rx, context).await })
-    };
+    let multicast_tx_handle =
+        { tokio::spawn(async move { spawn_multicast_tx_handler(sink, udp_rx, context).await }) };
 
     let _ = tokio::join!(
         client_listener_handle,

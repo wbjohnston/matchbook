@@ -1,4 +1,5 @@
 use fixer_upper::{Message as FixMessage, MessageType as FixMessageType};
+use itertools::Itertools;
 use matchbook_types::*;
 
 pub fn fix_message_into_matchbook_message(
@@ -20,12 +21,13 @@ pub fn fix_message_into_matchbook_message(
                     .ok_or("missing required field 'OrderQty'")?
                     as Quantity,
                 side: Side::Bid,
-                symbol: [
-                    symbol.chars().nth(0).unwrap(),
-                    symbol.chars().nth(1).unwrap(),
-                    symbol.chars().nth(2).unwrap(),
-                    symbol.chars().nth(3).unwrap(),
-                ],
+                symbol: {
+                    let (first, second, third, fourth) = symbol
+                        .chars()
+                        .next_tuple()
+                        .ok_or("incorrect length for field 'Symbol'")?;
+                    [first, second, third, fourth]
+                },
             },
             id: MessageId {
                 publisher_id: service_id,
@@ -52,12 +54,12 @@ pub fn matchbook_message_into_fix_message(msg: Message) -> FixMessage {
                 body_length: None,
                 msg_type: FixMessageType::NewOrderSingle,
                 sender_comp_id: String::from("matchbook"),
-                target_comp_id: format!("{}", msg.id.topic_id),
+                target_comp_id: msg.id.topic_id.to_string(),
                 msg_seq_num: msg.id.topic_sequence_n,
                 sending_time: msg.sending_time,
             },
             body: fixer_upper::Body {
-                cl_ord_id: Some(format!("{}", msg.id.topic_id)),
+                cl_ord_id: Some(msg.id.topic_id.to_string()),
                 handl_inst: Some(fixer_upper::HandleInstruction::ManualOrderBestExecution),
                 symbol: Some(symbol.iter().collect()),
                 side: Some(match side {

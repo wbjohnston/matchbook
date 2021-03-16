@@ -18,12 +18,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
     let (mut sink, mut stream) = {
         let socket = bind_multicast(
-            &SocketAddrV4::new(IP_ALL.into(), DEFAULT_MULTICAST_PORT.into()),
+            &SocketAddrV4::new(IP_ALL.into(), DEFAULT_MULTICAST_PORT),
             &SocketAddrV4::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT),
         )?;
         let socket = UdpSocket::from_std(socket)?;
-        let socket = UdpFramed::new(socket, MatchbookMessageCodec::new());
-        socket.split()
+        UdpFramed::new(socket, MatchbookMessageCodec::new()).split()
     };
 
     let multi_addr = SocketAddr::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT);
@@ -39,6 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(Ok((message, addr))) => {
                 let span = debug_span!("matching", ?addr);
                 let _enter = span.enter();
+                #[allow(clippy::single_match)] // this is going to be used later
                 match message.kind {
                     MessageKind::LimitOrderSubmitRequest {
                         quantity,
