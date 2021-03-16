@@ -30,6 +30,6 @@ jobs:
                 override: true
             - name: build
               run: cargo build
-            #   working-directory: ${{ matrix.project-dir }}
+              working-directory: ${{ matrix.project-dir }}
                 
 
