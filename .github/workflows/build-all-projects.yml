@@ -21,7 +21,7 @@ jobs:
                     ./services/retransmitter,
                     ./packages/matchbook-util,
                     ./packages/matchbook-types,
-                    ./packages/fixer-upper,
+                    ./packages/fixer-upper
                 ]
         steps:
             - uses: actions/checkout@v2
@@ -32,6 +32,9 @@ jobs:
                 override: true
             - name: build
               run: cargo build
+              working-directory: ${{ matrix.project-dir }}
+            - name: test
+              run: cargo test
               working-directory: ${{ matrix.project-dir }}
                 
 
