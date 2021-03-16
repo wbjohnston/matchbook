@@ -34,7 +34,7 @@ jobs:
             - uses: Swatinem/rust-cache@v1
             - name: lint
               working-directory: ${{ matrix.project-dir }}
-              run: cargo check
+              run: cargo clippy --all-targets --all-features -- -D warnings
             - name: build
               run: cargo build
               working-directory: ${{ matrix.project-dir }}
