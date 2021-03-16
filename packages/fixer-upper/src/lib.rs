@@ -1,7 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+
 pub type UtcTimeStamp = DateTime<Utc>;
+pub type Price = f32;
+pub type Quantity = f32;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -130,8 +133,7 @@ pub enum BeginString {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum HandleInstruction {
+pub enum HandlInst {
     #[serde(rename = "1")]
     AutomatedExecutionOrderPrivateNoBrokerIntervention,
     #[serde(rename = "2")]
@@ -141,20 +143,110 @@ pub enum HandleInstruction {
 }
 
 #[skip_serializing_none]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 pub struct Body {
     #[serde(rename = "ClOrdID")]
     pub cl_ord_id: Option<String>,
-    pub handl_inst: Option<HandleInstruction>,
+    #[serde(rename = "OrderID")]
+    pub order_id: Option<String>,
+    pub ord_status: Option<OrderStatus>,
+    #[serde(rename = "ExecID")]
+    pub exec_id: Option<String>,
+    pub exec_trans_type: Option<ExecTransType>,
+    pub exec_type: Option<ExecType>,
+    pub leaves_qty: Option<Quantity>,
+    pub cum_qty: Option<Quantity>,
+    pub avg_px: Option<Price>,
     pub symbol: Option<String>,
     pub side: Option<Side>,
     pub transact_time: Option<UtcTimeStamp>,
+    pub handl_inst: Option<HandlInst>,
     pub ord_type: Option<OrderType>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub order_qty: Option<f64>,
+    pub order_qty: Option<Quantity>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub price: Option<f64>,
+    pub price: Option<Price>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ExecTransType {
+    #[serde(rename = "0")]
+    New,
+    #[serde(rename = "1")]
+    Cancel,
+    #[serde(rename = "2")]
+    Correct,
+    #[serde(rename = "3")]
+    Status,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ExecType {
+    #[serde(rename = "0")]
+    New,
+    #[serde(rename = "1")]
+    PartialFill,
+    #[serde(rename = "2")]
+    Fill,
+    #[serde(rename = "3")]
+    DoneForDay,
+    #[serde(rename = "4")]
+    Canceled,
+    #[serde(rename = "5")]
+    Replaced,
+    #[serde(rename = "6")]
+    PendingCancel,
+    #[serde(rename = "7")]
+    Stopped,
+    #[serde(rename = "8")]
+    Rejected,
+    #[serde(rename = "9")]
+    Suspended,
+    #[serde(rename = "A")]
+    PendingNew,
+    #[serde(rename = "B")]
+    Calculated,
+    #[serde(rename = "C")]
+    Expired,
+    #[serde(rename = "D")]
+    Restated,
+    #[serde(rename = "E")]
+    PendingReplace,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum OrderStatus {
+    #[serde(rename = "0")]
+    New,
+    #[serde(rename = "1")]
+    PartiallyFilled,
+    #[serde(rename = "2")]
+    Filled,
+    #[serde(rename = "3")]
+    DoneForDay,
+    #[serde(rename = "4")]
+    Canceled,
+    #[serde(rename = "5")]
+    Replaced,
+    #[serde(rename = "6")]
+    PendingCancel,
+    #[serde(rename = "7")]
+    Stopped,
+    #[serde(rename = "8")]
+    Rejected,
+    #[serde(rename = "9")]
+    Suspended,
+    #[serde(rename = "A")]
+    PendingNew,
+    #[serde(rename = "B")]
+    Calculated,
+    #[serde(rename = "C")]
+    Expired,
+    #[serde(rename = "D")]
+    AcceptedForBidding,
+    #[serde(rename = "E")]
+    PendingReplace,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
