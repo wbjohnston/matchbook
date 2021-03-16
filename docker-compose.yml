@@ -25,6 +25,13 @@ services:
     build: 
       context: .
       dockerfile: services/matching-engine/Dockerfile
+  retransmitter:
+    networks: 
+      - backend
+    build:
+      context: .
+      dockerfile: services/retransmitter/Dockerfile
+
 
 
 networks: 
