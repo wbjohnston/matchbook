@@ -1,11 +1,12 @@
-use matchbook_types::{Price, Quantity, Side, SymbolOwned, SymbolRef};
+#![deny(clippy::all)]
+use matchbook_types::*;
 use std::cmp::Reverse;
 use std::{
     cmp::PartialOrd,
     collections::{BinaryHeap, HashMap},
 };
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct MatchingEngine {
     books: HashMap<SymbolOwned, Book>,
 }
@@ -19,9 +20,10 @@ impl MatchingEngine {
         quantity: Quantity,
     ) -> Result<Vec<Execution>, Box<dyn std::error::Error>> {
         let order = LimitOrder::new(quantity, price);
+
         let book = match self.books.get_mut(symbol) {
             Some(book) => book,
-            None => return Err(format!("symbol '{}' does not exist", symbol).into()),
+            None => return Err(format!("symbol '{:?}' does not exist", symbol).into()),
         };
 
         let fills = match side {
@@ -124,14 +126,14 @@ impl Book {
                 break 'matching;
             }
 
-            match self.bids.peek().clone() {
+            match self.bids.peek() {
                 Some(Reverse(bid)) if bid.is_filled() => {
                     self.bids.pop();
                 }
                 _ => {}
             };
 
-            match self.asks.peek().clone() {
+            match self.asks.peek() {
                 Some(ask) if ask.is_filled() => {
                     self.asks.pop();
                 }

@@ -13,10 +13,10 @@ src = "src/lib.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = "0.4"
+futures = "0.3.13"
 matchbook-types = {path = "../../packages/matchbook-types"}
 matchbook-util = { path = "../../packages/matchbook-util" }
 tokio = {version = "1.2.0", features = ["full"]}
-socket2 = { version = "0.3.4", features = ["reuseport"] }
-serde_json = "1.0"
-env_logger = "0.8.2"
+tokio-util = {version = "0.6.4", features = ["net", "codec"]}
+tracing = "0.1"
+tracing-subscriber = "0.2"

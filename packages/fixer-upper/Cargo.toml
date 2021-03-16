@@ -1,17 +1,12 @@
 [package]
-name = "matchbook-types"
+name = "fixer-upper"
 version = "0.1.0"
 authors = ["Will Johnston <wbjohnston@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dev-dependencies]
-pretty_assertions = "0.6.1"
-quickcheck = "1.0.3"
-
 [dependencies]
-serde = {version="1.0.124", features=["derive"]}
+serde = {version = "1.0.123", features=["derive"]}
 serde_with = "1.6.4"
-chrono = {version = "0.4.19", features=["serde"]}
-itertools = "0.10"
+chrono = {version = "0.4.19", features = ["serde"]}

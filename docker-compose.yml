@@ -13,18 +13,27 @@ services:
     ports: 
       - 8080:8080
     environment: 
-      - RUST_LOG=debug
+      - RUST_LOG=port=TRACE
   matching-engine:
     networks: 
       - backend
     environment: 
-      - RUST_LOG=debug
+      - RUST_LOG=matching_engine=TRACE
     env_file: 
       - services/matching-engine/.env
       - .env
     build: 
       context: .
       dockerfile: services/matching-engine/Dockerfile
+  retransmitter:
+    networks: 
+      - backend
+    environment: 
+      - RUST_LOG=retransmitter=TRACE
+    build:
+      context: .
+      dockerfile: services/retransmitter/Dockerfile
+
 
 
 networks: 

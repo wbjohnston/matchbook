@@ -1,119 +1,94 @@
-use env_logger;
-use log;
+#![deny(clippy::all)]
+use futures::sink::SinkExt;
+use futures::stream::StreamExt;
 use matchbook_types::*;
 use matchbook_util::*;
 use matching_engine::*;
-use serde_json;
-use std::net::{Ipv4Addr, SocketAddrV4};
-use std::str::FromStr;
+use std::net::{SocketAddr, SocketAddrV4};
 use tokio::net::UdpSocket;
+use tokio_util::udp::UdpFramed;
+use tracing::*;
 
-const DEFAULT_MULTICAST_ADDRESS: &'static str = "239.255.42.98";
-const DEFAULT_MULTICAST_PORT: &'static str = "50692";
+const DEFAULT_MULTICAST_ADDRESS: [u8; 4] = [239, 255, 42, 98];
+const DEFAULT_MULTICAST_PORT: u16 = 50692;
 const IP_ALL: [u8; 4] = [0, 0, 0, 0];
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    env_logger::init();
-    let config = get_config_from_env()?;
+    tracing_subscriber::fmt::init();
+    let (mut sink, mut stream) = {
+        let socket = bind_multicast(
+            &SocketAddrV4::new(IP_ALL.into(), DEFAULT_MULTICAST_PORT),
+            &SocketAddrV4::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT),
+        )?;
+        let socket = UdpSocket::from_std(socket)?;
+        UdpFramed::new(socket, MatchbookMessageCodec::new()).split()
+    };
 
-    let addr = SocketAddrV4::new(IP_ALL.into(), config.multicast_port);
-    let multi_addr = SocketAddrV4::new(config.multicast_address, config.multicast_port);
-    let std_socket = bind_multicast(&addr, &multi_addr)?;
-    let socket = UdpSocket::from_std(std_socket)?;
-
-    // TODO(will): how do I make the buffer dynamically grow based on message size?
-    let mut buf = vec![0; 1024 * 1024];
+    let multi_addr = SocketAddr::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT);
 
     let mut engine = MatchingEngine::default();
-    engine.create_symbol("foo".to_string());
+
+    engine.create_symbol(['A', 'D', 'B', 'E']);
+    engine.create_symbol(['C', 'O', 'I', 'N']);
+    debug!("loaded symbols");
 
     loop {
-        let (n, addr) = socket.recv_from(&mut buf).await?;
-        log::info!("received {} bytes from client at {}", n, addr);
-
-        let message_as_str = match std::str::from_utf8(&buf[..n]) {
-            Ok(s) => s,
-            Err(e) => {
-                log::error!("failed to parse received message into utf8. ignoring message");
-                log::error!("{}", e);
-                continue;
-            }
-        };
-
-        let message: Message = match serde_json::from_str(message_as_str) {
-            Ok(message) => message,
-            Err(e) => {
-                log::error!("failed to parse message");
-                log::error!("{}", e);
-                continue;
-            }
-        };
-
-        match message.kind {
-            MessageKind::LimitOrderSubmitRequest {
-                quantity,
-                price,
-                symbol,
-                side,
-            } => {
-                // FIXME:
-                log::info!(
-                    "[service='{:?}' participant='{}'] received request to open {:?} limit order for {} {} at {}",
-                    message.service_id,
-                    message.participant_id,
-                    side,
-                    quantity,
-                    symbol,
-                    price
-                );
-                let fills = engine.submit_limit_order(side, symbol.as_str(), price, quantity)?;
-                fills.iter().for_each(|execution| {
-                    log::info!(
-                        "executed {} shares of {} at {}",
-                        execution.quantity,
-                        symbol,
-                        execution.price
-                    )
-                });
-
-                let acknowledge_message = Message {
-                    kind: MessageKind::LimitOrderSubmitRequestAcknowledge {
+        match stream.next().await {
+            Some(Ok((message, addr))) => {
+                let span = debug_span!("matching", ?addr);
+                let _enter = span.enter();
+                #[allow(clippy::single_match)] // this is going to be used later
+                match message.kind {
+                    MessageKind::LimitOrderSubmitRequest {
                         quantity,
                         price,
                         symbol,
                         side,
-                    },
-                    ..message
-                };
+                    } => {
+                        info!(
+                            ?message.id,
+                            ?side,
+                            quantity,
+                            ?symbol,
+                            price,
+                            "received limit order open request"
+                        );
+                        let fills = match engine.submit_limit_order(side, &symbol, price, quantity)
+                        {
+                            Ok(fills) => fills,
+                            Err(e) => {
+                                warn!("failed to submit order {}", e);
+                                continue;
+                            }
+                        };
 
-                let serialized_ack_message = serde_json::to_string(&acknowledge_message)?;
-                socket
-                    .send_to(serialized_ack_message.as_bytes(), multi_addr)
-                    .await?;
+                        fills.iter().for_each(|execution| {
+                            info!(
+                                "executed {} shares of {:?} at {}",
+                                execution.quantity, symbol, execution.price
+                            )
+                        });
+
+                        let acknowledge_message = Message {
+                            kind: MessageKind::LimitOrderSubmitRequestAcknowledge {
+                                quantity,
+                                price,
+                                symbol,
+                                side,
+                            },
+                            ..message
+                        };
+
+                        sink.send((acknowledge_message, multi_addr)).await?;
+                    }
+                    _ => {}
+                }
             }
-            _ => {}
+            Some(Err(e)) => warn!("{}", e),
+            None => break,
         }
     }
-}
 
-#[derive(Debug, Clone, Copy)]
-struct Config {
-    pub service_identifier: ServiceId,
-    pub multicast_address: Ipv4Addr,
-    pub multicast_port: u16,
-}
-
-fn get_config_from_env() -> Result<Config, Box<dyn std::error::Error>> {
-    Ok(Config {
-        service_identifier: std::env::var("SERVICE_IDENTIFIER")
-            .map(|x| ServiceId::from_str(x.as_str()).unwrap())
-            .expect("missing required environment variable 'SERVICE_IDENTIFIER'"),
-        multicast_address: std::env::var("MULTICAST_ADDRESS")
-            .unwrap_or(DEFAULT_MULTICAST_ADDRESS.to_string())
-            .parse()?,
-        multicast_port: std::env::var("MULTICAST_PORT")
-            .unwrap_or(DEFAULT_MULTICAST_PORT.to_string())
-            .parse()?,
-    })
+    Ok(())
 }

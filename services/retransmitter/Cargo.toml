@@ -1,19 +1,17 @@
 [package]
-name = "port"
+name = "retransmitter"
 version = "0.1.0"
 authors = ["Will Johnston <wbjohnston@gmail.com>"]
 edition = "2018"
-publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-fixer-upper = {path = "../../packages/fixer-upper"}
-futures = "0.3.13"
-matchbook-types = { path = "../../packages/matchbook-types" }
-matchbook-util = { path = "../../packages/matchbook-util" }
+matchbook-types = { path = "../../packages/matchbook-types"}
+matchbook-util = { path = "../../packages/matchbook-util"}
 tokio = {version = "1.2.0", features = ["full"]}
 tokio-util = {version = "0.6.3", features=["net", "codec"]}
 tracing = "0.1"
 tracing-subscriber="0.2"
-itertools = "0.10"
+futures = "0.3.13"
+
