@@ -50,7 +50,7 @@ jobs:
                     !./target/deps/matchbook-util*
                     !./target/build/fixer-upper*
                     !./target/deps/fixer-upper*
-                  key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+                  key: ${{ runner.os }}-${{github.event.pull_request.head.ref}}
             - name: build
               run: cargo build
               working-directory: ${{ matrix.project-dir }}
@@ -95,6 +95,7 @@ jobs:
                     !./target/deps/matchbook-util*
                     !./target/build/fixer-upper*
                     !./target/deps/fixer-upper*
+                  key: ${{ runner.os }}-${{github.event.pull_request.head.ref}}
             - name: lint
               working-directory: ${{ matrix.project-dir }}
               run: cargo clippy --all-targets --all-features -- -D warnings
@@ -138,6 +139,7 @@ jobs:
                     !./target/deps/matchbook-util*
                     !./target/build/fixer-upper*
                     !./target/deps/fixer-upper*
+                  key: ${{ runner.os }}-${{github.event.pull_request.head.ref}}
             - name: test
               run: cargo test
               working-directory: ${{ matrix.project-dir }}
