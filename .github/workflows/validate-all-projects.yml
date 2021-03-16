@@ -32,6 +32,8 @@ jobs:
                 override: true
                 components: rustfmt, clippy
             - uses: Swatinem/rust-cache@v1
+              with:
+                working-directory: ${{ matrix.project-dir }}
             - name: lint
               working-directory: ${{ matrix.project-dir }}
               run: cargo clippy --all-targets --all-features -- -D warnings
