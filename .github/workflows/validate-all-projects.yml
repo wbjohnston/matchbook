@@ -30,9 +30,27 @@ jobs:
                 toolchain: 1.50.0
                 default: true
                 override: true
-            - uses: Swatinem/rust-cache@v1
+            - uses: actions/cache@v2
+              working-directory: ${{ matrix.project-dir }}
               with:
-                working-directory: ${{ matrix.project-dir }}
+                path: |
+                    ~/cargo/registry/index
+                    ~/.cargo/registry/cache
+                    ~/.cargo/registry/git
+                    ./target
+                    !./target/build/matching-engine*
+                    !./target/deps/matching-engine*
+                    !./target/build/port*
+                    !./target/deps/port*
+                    !./target/build/retransmitter*
+                    !./target/deps/retransmitter*
+                    !./target/build/matchbook-types*
+                    !./target/deps/matchbook-types*
+                    !./target/build/matchbook-util*
+                    !./target/deps/matchbook-util*
+                    !./target/build/fixer-upper*
+                    !./target/deps/fixer-upper*
+                  key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
             - name: build
               run: cargo build
               working-directory: ${{ matrix.project-dir }}
@@ -57,9 +75,26 @@ jobs:
                 default: true
                 override: true
                 components: rustfmt, clippy
-            - uses: Swatinem/rust-cache@v1
+            - uses: actions/cache@v2
+              working-directory: ${{ matrix.project-dir }}
               with:
-                working-directory: ${{ matrix.project-dir }}
+                path: |
+                    ~/cargo/registry/index
+                    ~/.cargo/registry/cache
+                    ~/.cargo/registry/git
+                    ./target
+                    !./target/build/matching-engine*
+                    !./target/deps/matching-engine*
+                    !./target/build/port*
+                    !./target/deps/port*
+                    !./target/build/retransmitter*
+                    !./target/deps/retransmitter*
+                    !./target/build/matchbook-types*
+                    !./target/deps/matchbook-types*
+                    !./target/build/matchbook-util*
+                    !./target/deps/matchbook-util*
+                    !./target/build/fixer-upper*
+                    !./target/deps/fixer-upper*
             - name: lint
               working-directory: ${{ matrix.project-dir }}
               run: cargo clippy --all-targets --all-features -- -D warnings
@@ -83,9 +118,26 @@ jobs:
                 toolchain: 1.50.0
                 default: true
                 override: true
-            - uses: Swatinem/rust-cache@v1
+            - uses: actions/cache@v2
+              working-directory: ${{ matrix.project-dir }}
               with:
-                working-directory: ${{ matrix.project-dir }}
+                path: |
+                    ~/cargo/registry/index
+                    ~/.cargo/registry/cache
+                    ~/.cargo/registry/git
+                    ./target
+                    !./target/build/matching-engine*
+                    !./target/deps/matching-engine*
+                    !./target/build/port*
+                    !./target/deps/port*
+                    !./target/build/retransmitter*
+                    !./target/deps/retransmitter*
+                    !./target/build/matchbook-types*
+                    !./target/deps/matchbook-types*
+                    !./target/build/matchbook-util*
+                    !./target/deps/matchbook-util*
+                    !./target/build/fixer-upper*
+                    !./target/deps/fixer-upper*
             - name: test
               run: cargo test
               working-directory: ${{ matrix.project-dir }}
