@@ -30,6 +30,9 @@ jobs:
                 toolchain: 1.50.0
                 default: true
                 override: true
+            - uses: Swatinem/rust-cache@v1
+              with:
+                working-directory: ${{ matrix.project-dir }}
             - name: build
               run: cargo build
               working-directory: ${{ matrix.project-dir }}
@@ -54,9 +57,12 @@ jobs:
                 default: true
                 override: true
                 components: rustfmt, clippy
+            - uses: Swatinem/rust-cache@v1
+              with:
+                working-directory: ${{ matrix.project-dir }}
             - name: lint
               working-directory: ${{ matrix.project-dir }}
-              run: cargo clippy --all-targets --all-features -- -D warnings
+              run: cargo clippy --all-features -- -D warnings
     test:
         runs-on: ubuntu-latest
         strategy:
@@ -77,6 +83,9 @@ jobs:
                 toolchain: 1.50.0
                 default: true
                 override: true
+            - uses: Swatinem/rust-cache@v1
+              with:
+                working-directory: ${{ matrix.project-dir }}
             - name: test
               run: cargo test
               working-directory: ${{ matrix.project-dir }}
