@@ -5,12 +5,16 @@
 			"path": "."
 		},
 		{
+			"name": "service:matching-engine",
+			"path": "./services/matching-engine"
+		},
+		{
 			"name": "service:port",
 			"path": "./services/port"
 		},
 		{
-			"name": "service:matching-engine",
-			"path": "./services/matching-engine"
+			"name": "service:retransmitter",
+			"path": "./services/retransmitter"
 		},
 		{
 			"name": "package:matchbook-types",
