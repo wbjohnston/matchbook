@@ -16,11 +16,11 @@ jobs:
             fail-fast: false
             matrix:
                 project-dir: [
-                    services/matching-engine
-                    services/port
-                    services/retransmitter
-                    packages/matchbook-util
-                    packages/fixer-upper
+                    # services/matching-engine
+                    ./services/port
+                    # services/retransmitter
+                    # packages/matchbook-util
+                    # packages/fixer-upper
                 ]
         steps:
             - uses: actions/checkout@v2
