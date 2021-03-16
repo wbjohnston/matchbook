@@ -79,6 +79,7 @@ pub enum MessageKind {
         quantity: Quantity,
         symbol: SymbolOwned,
     },
+    // uses the id field of the message wrapper to determine what message to resend
     RetransmitRequest,
 }
 
