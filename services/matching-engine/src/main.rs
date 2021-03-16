@@ -1,3 +1,4 @@
+#![deny(clippy::all)]
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use matchbook_types::*;

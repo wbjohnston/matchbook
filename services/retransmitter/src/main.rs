@@ -1,3 +1,4 @@
+#![deny(clippy::all)]
 use {
     futures::{SinkExt, StreamExt},
     matchbook_types::*,

@@ -1,13 +1,12 @@
 name: validate-all-projects
-# on:
-#     push:
-#         branches:
-#             - main
-#     pull_request:
-#         branches:
-#             - main
+on:
+    push:
+        branches:
+            - main
+    pull_request:
+        branches:
+            - main
 
-on: [push]
 
 jobs:
     build:
@@ -30,27 +29,9 @@ jobs:
                 toolchain: 1.50.0
                 default: true
                 override: true
-            # - uses: actions/cache@v2
-            #   working-directory: ${{ matrix.project-dir }}
-            #   with:
-            #     path: |
-            #         ~/cargo/registry/index
-            #         ~/.cargo/registry/cache
-            #         ~/.cargo/registry/git
-            #         ./target
-            #         !./target/build/matching-engine*
-            #         !./target/deps/matching-engine*
-            #         !./target/build/port*
-            #         !./target/deps/port*
-            #         !./target/build/retransmitter*
-            #         !./target/deps/retransmitter*
-            #         !./target/build/matchbook-types*
-            #         !./target/deps/matchbook-types*
-            #         !./target/build/matchbook-util*
-            #         !./target/deps/matchbook-util*
-            #         !./target/build/fixer-upper*
-            #         !./target/deps/fixer-upper*
-            #       key: ${{ runner.os }}-${{github.event.pull_request.head.ref}}
+            - uses: Swatinem/rust-cache@v1
+              with:
+                working-directory: ${{matrix.project-dir}}
             - name: build
               run: cargo build
               working-directory: ${{ matrix.project-dir }}
@@ -75,27 +56,9 @@ jobs:
                 default: true
                 override: true
                 components: rustfmt, clippy
-            # - uses: actions/cache@v2
-            #   working-directory: ${{ matrix.project-dir }}
-            #   with:
-            #     path: |
-            #         ~/cargo/registry/index
-            #         ~/.cargo/registry/cache
-            #         ~/.cargo/registry/git
-            #         ./target
-            #         !./target/build/matching-engine*
-            #         !./target/deps/matching-engine*
-            #         !./target/build/port*
-            #         !./target/deps/port*
-            #         !./target/build/retransmitter*
-            #         !./target/deps/retransmitter*
-            #         !./target/build/matchbook-types*
-            #         !./target/deps/matchbook-types*
-            #         !./target/build/matchbook-util*
-            #         !./target/deps/matchbook-util*
-            #         !./target/build/fixer-upper*
-            #         !./target/deps/fixer-upper*
-            #       key: ${{ runner.os }}-${{github.event.pull_request.head.ref}}
+            - uses: Swatinem/rust-cache@v1
+              with:
+                working-directory: ${{matrix.project-dir}}
             - name: lint
               working-directory: ${{ matrix.project-dir }}
               run: cargo clippy --all-targets --all-features -- -D warnings
@@ -119,27 +82,9 @@ jobs:
                 toolchain: 1.50.0
                 default: true
                 override: true
-            # - uses: actions/cache@v2
-            #   working-directory: ${{ matrix.project-dir }}
-            #   with:
-            #     path: |
-            #         ~/cargo/registry/index
-            #         ~/.cargo/registry/cache
-            #         ~/.cargo/registry/git
-            #         ./target
-            #         !./target/build/matching-engine*
-            #         !./target/deps/matching-engine*
-            #         !./target/build/port*
-            #         !./target/deps/port*
-            #         !./target/build/retransmitter*
-            #         !./target/deps/retransmitter*
-            #         !./target/build/matchbook-types*
-            #         !./target/deps/matchbook-types*
-            #         !./target/build/matchbook-util*
-            #         !./target/deps/matchbook-util*
-            #         !./target/build/fixer-upper*
-            #         !./target/deps/fixer-upper*
-            #       key: ${{ runner.os }}-${{github.event.pull_request.head.ref}}
+            - uses: Swatinem/rust-cache@v1
+              with:
+                working-directory: ${{matrix.project-dir}}
             - name: test
               run: cargo test
               working-directory: ${{ matrix.project-dir }}

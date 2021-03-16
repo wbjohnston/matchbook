@@ -1,3 +1,4 @@
+#![deny(clippy::all)]
 use std::net::SocketAddrV4;
 pub mod codec;
 pub use codec::*;

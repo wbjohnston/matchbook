@@ -99,7 +99,7 @@ impl std::fmt::Display for ServiceId {
 impl std::str::FromStr for ServiceId {
     type Err = Box<dyn std::error::Error>;
     fn from_str(s: &str) -> std::result::Result<Self, <Self as std::str::FromStr>::Err> {
-        let mut split = s.split(":");
+        let mut split = s.split(':');
         let kind = if let Some(kind) = split.next() {
             ServiceKind::from_str(kind)?
         } else {
@@ -155,7 +155,7 @@ mod test {
     impl quickcheck::Arbitrary for ServiceKind {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {
             let choices = [ServiceKind::Port, ServiceKind::MatchingEngine];
-            g.choose(&choices).unwrap().clone()
+            *g.choose(&choices).unwrap()
         }
     }
 

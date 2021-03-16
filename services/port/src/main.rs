@@ -1,8 +1,9 @@
+#![deny(clippy::all)]
 mod handler;
 mod message;
 
 use {
-    futures::{Sink, SinkExt, Stream, StreamExt},
+    futures::StreamExt,
     handler::*,
     matchbook_types::*,
     matchbook_util::*,
@@ -14,13 +15,9 @@ use {
     },
     tokio::{
         net::{TcpListener, UdpSocket},
-        sync::{
-            mpsc::{Receiver, Sender},
-            RwLock,
-        },
+        sync::{mpsc::Sender, RwLock},
     },
     tokio_util::udp::UdpFramed,
-    tracing::*,
 };
 
 const DEFAULT_MULTICAST_ADDRESS: [u8; 4] = [239, 255, 42, 98];

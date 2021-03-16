@@ -1,3 +1,4 @@
+#![deny(clippy::all)]
 use matchbook_types::*;
 use std::cmp::Reverse;
 use std::{
