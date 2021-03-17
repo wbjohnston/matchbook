@@ -1,42 +1,30 @@
 # Matchbook
 
-A stock exchange
+A toy stock exchange written to learn about Exchange technology and architecture. Inspired by [Brian Nigito's talk "How to Build an Exchange"](https://www.youtube.com/watch?v=b1e4t2k2KJY).
+
+Matchbook accepts [Financial Information eXchange](https://en.wikipedia.org/wiki/Financial_Information_eXchange) (FIX) messages from incoming clients on TCP port `8080`.
 
 ![validate-all-projects workflow status](https://github.com/wbjohnston/matchbook/actions/workflows/validate-all-projects.yml/badge.svg)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-## Development
+## Usage
 
-### Prerequisites
+provided you have [docker compose](https://docs.docker.com/compose/install/) installed, you can start matchbook using:
 
-You'll need to install these things before you can start developing
-
-* [Docker](https://docs.docker.com/get-docker/)
-* [Docker Compose](https://docs.docker.com/compose/)
-* [Rust](https://rustup.rs/)
-
-### Running
-
-You can start the project by running
-
-```bash
+```shell
 docker-compose up
 ```
 
-If you make code changed, you'll need to rebuild the project using
+matchbook will start listening on `localhost:8080` for incoming TCP connections.
 
-```bash
-docker-compose build
-```
+## Contributing
 
-Or, to build and start the project at the same time:
+Interested in contributing? check out the [contributing guide](./CONTRIBUTING.md).
 
-```bash
-docker-compose up --build
-```
+## License
 
-This will start the project listening on `localhost:8080`
+This project is license under the [GNU GPLv3 Licence](./LICENSE)
 
-### Architecture
+### Contribution
 
-see [ARCHITECTURE.md](ARCHITECTURE.md)
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Matchbook by you, shall be licensed as GNU GPLv3, without any additional terms or conditions.
