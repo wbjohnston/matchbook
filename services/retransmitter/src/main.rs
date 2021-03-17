@@ -1,14 +1,12 @@
 #![deny(clippy::all)]
 
-use std::marker;
-
-use marker::Unpin;
 use {
     futures::{Sink, SinkExt, Stream, StreamExt},
     matchbook_types::*,
     matchbook_util::*,
     std::{
         collections::HashMap,
+        marker::Unpin,
         net::{SocketAddr, SocketAddrV4},
     },
     tokio::net::UdpSocket,
@@ -82,7 +80,125 @@ mod test {
     use futures_test::*;
 
     #[tokio::test]
-    async fn sucks_up_events() {
+    async fn retransmits_first_message_received_when_a_message_with_a_duplicate_id_is_received() {
+        let (sink_tx, mut sink_rx) = futures::channel::mpsc::channel(1);
+        let (mut stream_tx, stream_rx) = futures::channel::mpsc::channel(1);
+
+        let multicast_addr =
+            SocketAddr::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT);
+
+        tokio::spawn(async move { spawn_main_loop(stream_rx, sink_tx, multicast_addr).await });
+
+        let id = MessageId {
+            publisher_id: ServiceId {
+                kind: ServiceKind::Port,
+                number: 0,
+            },
+            topic_id: "client1".to_owned(),
+            topic_sequence_n: 0,
+        };
+
+        let first_received = Message {
+            id: id.clone(),
+            sending_time: chrono::Utc::now(),
+            kind: MessageKind::LimitOrderSubmitRequest {
+                side: Side::Bid,
+                price: 100,
+                quantity: 100,
+                symbol: ['A', 'D', 'B', 'E'],
+            },
+        };
+
+        let id_colliding_message = Message {
+            id: id.clone(),
+            sending_time: chrono::Utc::now(),
+            kind: MessageKind::LimitOrderSubmitRequest {
+                side: Side::Bid,
+                price: 100,
+                quantity: 100,
+                symbol: ['A', 'D', 'B', 'E'],
+            },
+        };
+
+        let retransmit_req = Message {
+            id: id.clone(),
+            kind: MessageKind::RetransmitRequest,
+            sending_time: chrono::Utc::now(),
+        };
+
+        stream_tx
+            .send(Ok((first_received.clone(), multicast_addr)))
+            .await
+            .unwrap();
+
+        assert_stream_pending!(sink_rx);
+
+        stream_tx
+            .send(Ok((id_colliding_message, multicast_addr)))
+            .await
+            .unwrap();
+
+        assert_stream_pending!(sink_rx);
+
+        stream_tx
+            .send(Ok((retransmit_req.clone(), multicast_addr)))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            sink_rx.next().await.unwrap(),
+            (first_received.clone(), multicast_addr),
+            "received different message than the first message the retransmitter received"
+        );
+        assert_stream_pending!(sink_rx);
+
+        stream_tx
+            .send(Ok((retransmit_req.clone(), multicast_addr)))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            sink_rx.next().await.unwrap(),
+            (first_received.clone(), multicast_addr),
+            "received different message after requesting another retranimst. the same message should always be retransmitted"
+        );
+        assert_stream_pending!(sink_rx);
+    }
+
+    #[tokio::test]
+    async fn doesnt_retransmit_an_unknown_message() {
+        let (sink_tx, mut sink_rx) = futures::channel::mpsc::channel(1);
+        let (mut stream_tx, stream_rx) = futures::channel::mpsc::channel(1);
+
+        let multicast_addr =
+            SocketAddr::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT);
+
+        tokio::spawn(async move { spawn_main_loop(stream_rx, sink_tx, multicast_addr).await });
+
+        stream_tx
+            .send(Ok((
+                Message {
+                    id: MessageId {
+                        publisher_id: ServiceId {
+                            kind: ServiceKind::Port,
+                            number: 0,
+                        },
+                        topic_id: String::from("foobar"),
+                        topic_sequence_n: 1000,
+                    },
+                    sending_time: chrono::Utc::now(),
+                    kind: MessageKind::RetransmitRequest,
+                },
+                multicast_addr,
+            )))
+            .await
+            .unwrap();
+
+        assert_stream_pending!(sink_rx);
+    }
+
+    #[tokio::test]
+    async fn retransmits_messages_in_the_order_retransmit_requests_arrive() {
         let to_retransmit_id_1 = MessageId {
             publisher_id: ServiceId {
                 kind: ServiceKind::Port,
@@ -167,7 +283,13 @@ mod test {
             .await
             .unwrap();
 
-        assert_stream_next!(sink_rx, (to_retransmit_2, multicast_addr));
-        assert_stream_next!(sink_rx, (to_retransmit_1, multicast_addr));
+        assert_eq!(
+            sink_rx.next().await.unwrap(),
+            (to_retransmit_2, multicast_addr)
+        );
+        assert_eq!(
+            sink_rx.next().await.unwrap(),
+            (to_retransmit_1, multicast_addr)
+        );
     }
 }
