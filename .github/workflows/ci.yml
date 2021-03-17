@@ -1,4 +1,4 @@
-name: validate-all-projects
+name: ci
 on:
     push:
         branches:
