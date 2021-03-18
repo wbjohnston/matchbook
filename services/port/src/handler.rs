@@ -12,7 +12,6 @@ use {
     tracing::*,
 };
 
-#[tracing::instrument]
 pub async fn spawn_listen_handler<'a>(
     listener: TcpListener,
     udp_tx: Sender<(Message, SocketAddr)>,
@@ -21,7 +20,10 @@ pub async fn spawn_listen_handler<'a>(
 ) {
     info!("started listening on {}", listener.local_addr().unwrap());
     while let Ok((stream, addr)) = listener.accept().await {
-        info!("accepted connection");
+        let span = debug_span!("connection accepted");
+        let _enter = span.enter();
+
+        info!("accepted connection from {}", addr);
         let udp_tx = udp_tx.clone();
         let state = state.clone();
 
@@ -31,7 +33,6 @@ pub async fn spawn_listen_handler<'a>(
     }
 }
 
-#[tracing::instrument]
 pub async fn spawn_client_handler(
     stream: tokio::net::TcpStream,
     udp_tx: Sender<(Message, SocketAddr)>,
@@ -44,13 +45,55 @@ pub async fn spawn_client_handler(
     let framed = tokio_util::codec::Framed::new(stream, FixJsonCodec::new());
     let (mut sink, mut stream) = framed.split();
 
+    // FIX session sequence numbers start at 1
+    let mut inbound_sequence_n = 1;
+    let mut outbound_sequence_n = 1;
+
     // create a channel that will be used to start listening for UDP messages after the user has
     let (sender_tx, mut sender_rx) = tokio::sync::mpsc::channel(32);
     let (logon_tx, logon_rx) = tokio::sync::oneshot::channel();
     let listen_handle = tokio::spawn(async move {
         let udp_tx = udp_tx.clone();
         let participant_id = loop {
+            let span = debug_span!("client message received", ?addr);
+            let _enter = span.enter();
+
             let message = stream.next().await;
+
+            if let Some(Ok(ref message)) = message {
+                let sequence_n = message.header.msg_seq_num;
+                if sequence_n != inbound_sequence_n {
+                    error!(
+                        "received unexpected sequence number {}, was expecting {}. terminating connection",
+                        sequence_n, inbound_sequence_n
+                    );
+                    sender_tx
+                        .send(fixer_upper::Message {
+                            header: fixer_upper::Header {
+                                begin_string: fixer_upper::BeginString::Fix_4_4,
+                                body_length: None,
+                                msg_type: fixer_upper::MessageType::Logout,
+                                sender_comp_id: message.header.target_comp_id.clone(),
+                                target_comp_id: "matchbook".to_string(),
+                                msg_seq_num: outbound_sequence_n,
+                                sending_time: chrono::Utc::now(),
+                            },
+                            body: fixer_upper::Body {
+                                ..fixer_upper::Body::default()
+                            },
+                            trailer: fixer_upper::Trailer {
+                                signature: None,
+                                signature_length: None,
+                            },
+                        })
+                        .await
+                        .unwrap();
+
+                    return;
+                }
+            }
+
+            inbound_sequence_n += 1;
 
             match message {
                 Some(Ok(FixMessage {
@@ -81,7 +124,45 @@ pub async fn spawn_client_handler(
 
         // normal flow
         loop {
-            match stream.next().await {
+            let message = stream.next().await;
+            // TODO(will): check if sequence number matches
+            if let Some(Ok(ref message)) = message {
+                let sequence_n = message.header.msg_seq_num;
+                if sequence_n != inbound_sequence_n {
+                    error!(
+                        "received unexected sequence number {}, was expecting {}. terminating connection",
+                        sequence_n, inbound_sequence_n
+                    );
+
+                    sender_tx
+                        .send(fixer_upper::Message {
+                            header: fixer_upper::Header {
+                                begin_string: fixer_upper::BeginString::Fix_4_4,
+                                body_length: None,
+                                msg_type: fixer_upper::MessageType::Logout,
+                                sender_comp_id: message.header.target_comp_id.clone(),
+                                target_comp_id: "matchbook".to_string(),
+                                msg_seq_num: outbound_sequence_n,
+                                sending_time: chrono::Utc::now(),
+                            },
+                            body: fixer_upper::Body {
+                                ..fixer_upper::Body::default()
+                            },
+                            trailer: fixer_upper::Trailer {
+                                signature: None,
+                                signature_length: None,
+                            },
+                        })
+                        .await
+                        .unwrap();
+
+                    return;
+                }
+            }
+
+            inbound_sequence_n += 1;
+
+            match message {
                 Some(Ok(message)) => {
                     let message = match message::fix_message_into_matchbook_message(
                         message,
@@ -112,10 +193,12 @@ pub async fn spawn_client_handler(
         loop {
             tokio::select! {
                 Some((message, _)) = participant_rx.recv()=> {
-                    let message = message::matchbook_message_into_fix_message(message);
+                    let mut message = message::matchbook_message_into_fix_message(message);
+                    message.header.msg_seq_num = outbound_sequence_n;
                     sink.send(message)
                         .await
-                        .expect("failed to write message to client")
+                        .expect("failed to write message to client");
+                    outbound_sequence_n += 1;
                 }
                 Some(message) = sender_rx.recv() => {
                     sink.send(message).await.unwrap()
@@ -135,17 +218,20 @@ pub async fn spawn_client_handler(
         }
     };
 
-    state.write().await.insert(participant_id, participant_tx);
+    state
+        .write()
+        .await
+        .insert(participant_id.clone(), participant_tx);
     info!("user authenticated and ready to receive messages");
 
-    tokio::try_join!(listen_handle, sender_handle).unwrap();
+    tokio::select!(_ = listen_handle => { }, _ = sender_handle => { });
+    info!("ending session for participant {}", participant_id);
 }
 
-#[tracing::instrument]
 pub async fn spawn_multicast_rx_handler<S>(
     mut stream: S,
     state: ParticipantChannelMap,
-    context: Context,
+    _context: Context,
 ) where
     S: Stream<Item = Result<(Message, SocketAddr), std::io::Error>> + Unpin + std::fmt::Debug,
 {
@@ -162,7 +248,6 @@ pub async fn spawn_multicast_rx_handler<S>(
     }
 }
 
-#[tracing::instrument]
 pub async fn spawn_multicast_tx_handler<S>(
     mut sink: S,
     mut rx: Receiver<(Message, SocketAddr)>,
