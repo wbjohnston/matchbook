@@ -17,7 +17,6 @@ pub type SymbolRef<'a> = &'a SymbolOwned;
 pub struct Message {
     #[serde_as(as = "DisplayFromStr")]
     pub id: MessageId,
-    pub sending_time: UtcTimeStamp,
     pub kind: MessageKind,
 }
 
