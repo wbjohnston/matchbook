@@ -58,7 +58,7 @@ pub fn matchbook_message_into_fix_message(msg: Message) -> FixMessage {
                 sending_time: chrono::Utc::now(),
             },
             body: fixer_upper::Body {
-                cl_ord_id: Some(msg.id.topic_id.to_string()),
+                cl_ord_id: Some(msg.id.topic_id),
                 handl_inst: Some(fixer_upper::HandlInst::ManualOrderBestExecution),
                 symbol: Some(symbol.iter().collect()),
                 side: Some(match side {
