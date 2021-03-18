@@ -1,4 +1,5 @@
 #![deny(clippy::all)]
+mod config;
 mod handler;
 mod message;
 
@@ -28,6 +29,8 @@ pub type ParticipantChannelMap = Arc<RwLock<HashMap<ParticipantId, Sender<(Messa
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    let config = config::source_config_from_env()?;
+
     tracing_subscriber::fmt::init();
     let service_id = ServiceId {
         kind: ServiceKind::Port,
@@ -36,6 +39,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let multicast_addr = SocketAddr::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT);
 
     let context = Context {
+        exchange_id: config.exchange_id,
         service_id,
         multicast_addr,
     };
@@ -60,6 +64,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // A task responsible for handling incoming client connections
     let client_listener_handle = {
         let state = state.clone();
+        let context = context.clone();
         tokio::spawn(
             async move { spawn_listen_handler(listener, udp_tx, state.clone(), context).await },
         )
@@ -68,11 +73,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //A task that listens for inbound multicast packets and forwards them to the applicable client handler
     let multicast_rx_handle = {
         let state = state.clone();
+        let context = context.clone();
         tokio::spawn(async move { spawn_multicast_rx_handler(stream, state, context).await })
     };
 
-    let multicast_tx_handle =
-        { tokio::spawn(async move { spawn_multicast_tx_handler(sink, udp_rx, context).await }) };
+    let multicast_tx_handle = {
+        let context = context.clone();
+        tokio::spawn(async move { spawn_multicast_tx_handler(sink, udp_rx, context).await })
+    };
 
     let _ = tokio::join!(
         client_listener_handle,
@@ -83,8 +91,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Context {
     pub service_id: ServiceId,
+    pub exchange_id: String,
     pub multicast_addr: SocketAddr,
 }

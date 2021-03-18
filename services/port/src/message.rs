@@ -39,7 +39,7 @@ pub fn fix_message_into_matchbook_message(
     })
 }
 
-pub fn matchbook_message_into_fix_message(msg: Message) -> FixMessage {
+pub fn matchbook_message_into_fix_message(msg: Message, exchange_id: String) -> FixMessage {
     match msg.kind {
         MessageKind::LimitOrderSubmitRequest {
             price,
@@ -52,7 +52,7 @@ pub fn matchbook_message_into_fix_message(msg: Message) -> FixMessage {
                 begin_string: fixer_upper::BeginString::Fix_4_4,
                 body_length: None,
                 msg_type: FixMessageType::NewOrderSingle,
-                sender_comp_id: String::from("matchbook"),
+                sender_comp_id: exchange_id,
                 target_comp_id: msg.id.topic_id.to_string(),
                 msg_seq_num: msg.id.topic_sequence_n,
                 sending_time: chrono::Utc::now(),
@@ -86,7 +86,7 @@ pub fn matchbook_message_into_fix_message(msg: Message) -> FixMessage {
                 begin_string: fixer_upper::BeginString::Fix_4_4,
                 body_length: None,
                 msg_type: fixer_upper::MessageType::ExecutionReport,
-                sender_comp_id: String::from("matchbook"),
+                sender_comp_id: exchange_id,
                 target_comp_id: msg.id.topic_id.to_string(),
                 msg_seq_num: msg.id.topic_sequence_n,
                 sending_time: chrono::Utc::now(),
