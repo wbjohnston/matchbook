@@ -1,4 +1,14 @@
 #![deny(clippy::all)]
+
+use std::io::BufReader;
+
+use tokio_rustls::{
+    rustls::{
+        internal::pemfile::{certs, pkcs8_private_keys},
+        NoClientAuth, ServerConfig,
+    },
+    TlsAcceptor,
+};
 mod config;
 mod handler;
 mod message;
@@ -28,7 +38,6 @@ pub type ParticipantChannelMap = Arc<RwLock<HashMap<ParticipantId, Sender<(Messa
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let config = config::source_config_from_env()?;
-
     tracing_subscriber::fmt::init();
     let context = Context {
         exchange_id: config.exchange_id,
@@ -51,15 +60,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (udp_tx, udp_rx) = tokio::sync::mpsc::channel(32);
 
     let (sink, stream) = udp_socket.split();
+
+    let mut tls_config = ServerConfig::new(NoClientAuth::new());
+    let certs = certs(&mut BufReader::new(std::io::Cursor::new(config.tls_cert))).unwrap();
+    let keys = pkcs8_private_keys(&mut BufReader::new(std::io::Cursor::new(
+        config.tls_cert_key,
+    )))
+    .unwrap();
+
+    tls_config.set_single_cert(certs, keys[0].clone())?;
+
+    let tls_acceptor = TlsAcceptor::from(Arc::new(tls_config));
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
 
     // A task responsible for handling incoming client connections
     let client_listener_handle = {
         let state = state.clone();
         let context = context.clone();
-        tokio::spawn(
-            async move { spawn_listen_handler(listener, udp_tx, state.clone(), context).await },
-        )
+        tokio::spawn(async move {
+            spawn_listen_handler(listener, tls_acceptor, udp_tx, state.clone(), context).await
+        })
     };
 
     //A task that listens for inbound multicast packets and forwards them to the applicable client handler

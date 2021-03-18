@@ -1,3 +1,6 @@
+use tokio::net::TcpStream;
+use tokio_rustls::{server::TlsStream, TlsAcceptor};
+
 use {
     crate::{message, Context, ParticipantChannelMap},
     fixer_upper::{Header as FixHeader, Message as FixMessage, MessageType as FixMessageType},
@@ -14,6 +17,7 @@ use {
 
 pub async fn spawn_listen_handler<'a>(
     listener: TcpListener,
+    tls_acceptor: TlsAcceptor,
     udp_tx: Sender<(Message, SocketAddr)>,
     state: ParticipantChannelMap,
     context: Context,
@@ -22,6 +26,13 @@ pub async fn spawn_listen_handler<'a>(
     while let Ok((stream, addr)) = listener.accept().await {
         let span = debug_span!("connection accepted");
         let _enter = span.enter();
+        let stream = match tls_acceptor.accept(stream).await {
+            Ok(stream) => stream,
+            Err(e) => {
+                error!("tls failed {:?}", e);
+                continue;
+            }
+        };
 
         info!("accepted connection from {}", addr);
         let udp_tx = udp_tx.clone();
@@ -35,7 +46,7 @@ pub async fn spawn_listen_handler<'a>(
 }
 
 pub async fn spawn_client_handler(
-    stream: tokio::net::TcpStream,
+    stream: TlsStream<TcpStream>,
     udp_tx: Sender<(Message, SocketAddr)>,
     addr: SocketAddr,
     state: ParticipantChannelMap,
