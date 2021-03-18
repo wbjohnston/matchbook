@@ -100,7 +100,6 @@ mod test {
 
         let first_received = Message {
             id: id.clone(),
-            sending_time: chrono::Utc::now(),
             kind: MessageKind::LimitOrderSubmitRequest {
                 side: Side::Bid,
                 price: 100,
@@ -111,7 +110,6 @@ mod test {
 
         let id_colliding_message = Message {
             id: id.clone(),
-            sending_time: chrono::Utc::now(),
             kind: MessageKind::LimitOrderSubmitRequest {
                 side: Side::Bid,
                 price: 100,
@@ -123,7 +121,6 @@ mod test {
         let retransmit_req = Message {
             id: id.clone(),
             kind: MessageKind::RetransmitRequest,
-            sending_time: chrono::Utc::now(),
         };
 
         stream_tx
@@ -186,7 +183,6 @@ mod test {
                         topic_id: String::from("foobar"),
                         topic_sequence_n: 1000,
                     },
-                    sending_time: chrono::Utc::now(),
                     kind: MessageKind::RetransmitRequest,
                 },
                 multicast_addr,
@@ -210,7 +206,6 @@ mod test {
 
         let to_retransmit_1 = Message {
             id: to_retransmit_id_1.clone(),
-            sending_time: chrono::Utc::now(),
             kind: MessageKind::LimitOrderSubmitRequest {
                 side: Side::Bid,
                 price: 100,
@@ -230,7 +225,6 @@ mod test {
 
         let to_retransmit_2 = Message {
             id: to_retransmit_id_2.clone(),
-            sending_time: chrono::Utc::now(),
             kind: MessageKind::LimitOrderSubmitRequest {
                 side: Side::Bid,
                 price: 100,
@@ -242,13 +236,11 @@ mod test {
         let retransmit_1_req = Message {
             id: to_retransmit_id_1.clone(),
             kind: MessageKind::RetransmitRequest,
-            sending_time: chrono::Utc::now(),
         };
 
         let retransmit_2_req = Message {
             id: to_retransmit_id_2.clone(),
             kind: MessageKind::RetransmitRequest,
-            sending_time: chrono::Utc::now(),
         };
 
         let (sink_tx, mut sink_rx) = futures::channel::mpsc::channel(1);

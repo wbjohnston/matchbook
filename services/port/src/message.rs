@@ -34,7 +34,6 @@ pub fn fix_message_into_matchbook_message(
                 topic_id: msg.header.sender_comp_id,
                 topic_sequence_n: msg.header.msg_seq_num,
             },
-            sending_time: msg.header.sending_time,
         },
         x => unimplemented!("{:?}", x),
     })
@@ -56,17 +55,17 @@ pub fn matchbook_message_into_fix_message(msg: Message) -> FixMessage {
                 sender_comp_id: String::from("matchbook"),
                 target_comp_id: msg.id.topic_id.to_string(),
                 msg_seq_num: msg.id.topic_sequence_n,
-                sending_time: msg.sending_time,
+                sending_time: chrono::Utc::now(),
             },
             body: fixer_upper::Body {
-                cl_ord_id: Some(msg.id.topic_id.to_string()),
+                cl_ord_id: Some(msg.id.topic_id),
                 handl_inst: Some(fixer_upper::HandlInst::ManualOrderBestExecution),
                 symbol: Some(symbol.iter().collect()),
                 side: Some(match side {
                     Side::Ask => fixer_upper::Side::Sell,
                     Side::Bid => fixer_upper::Side::Buy,
                 }),
-                transact_time: Some(msg.sending_time),
+                transact_time: Some(chrono::Utc::now()),
                 ord_type: Some(fixer_upper::OrderType::Limit),
                 order_qty: Some(quantity as fixer_upper::Price),
                 price: Some(price as fixer_upper::Price),
@@ -90,7 +89,7 @@ pub fn matchbook_message_into_fix_message(msg: Message) -> FixMessage {
                 sender_comp_id: String::from("matchbook"),
                 target_comp_id: msg.id.topic_id.to_string(),
                 msg_seq_num: msg.id.topic_sequence_n,
-                sending_time: msg.sending_time,
+                sending_time: chrono::Utc::now(),
             },
             body: fixer_upper::Body {
                 order_id: Some("foobar".to_string()), // TODO(will): where does this come from
