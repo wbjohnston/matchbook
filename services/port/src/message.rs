@@ -20,7 +20,10 @@ pub fn fix_message_into_matchbook_message(
                     .order_qty
                     .ok_or("missing required field 'OrderQty'")?
                     as Quantity,
-                side: Side::Bid,
+                side: match msg.body.side.ok_or("missing required field 'Side'")? {
+                    fixer_upper::Side::Buy => Side::Bid,
+                    fixer_upper::Side::Sell => Side::Ask,
+                },
                 symbol: {
                     let (first, second, third, fourth) = symbol
                         .chars()
@@ -80,6 +83,7 @@ pub fn matchbook_message_into_fix_message(msg: Message, exchange_id: String) -> 
             side,
             symbol,
             quantity,
+            id,
             ..
         } => FixMessage {
             header: fixer_upper::Header {
@@ -92,9 +96,9 @@ pub fn matchbook_message_into_fix_message(msg: Message, exchange_id: String) -> 
                 sending_time: chrono::Utc::now(),
             },
             body: fixer_upper::Body {
-                order_id: Some("foobar".to_string()), // TODO(will): where does this come from
+                order_id: Some(format!("{}", id)), // TODO(will): where does this come from
                 ord_status: Some(fixer_upper::OrderStatus::New),
-                exec_id: Some("foobar".to_string()), // TODO(will): where does this come from
+                exec_id: None,
                 symbol: Some(symbol.iter().collect()),
                 exec_trans_type: Some(fixer_upper::ExecTransType::New),
                 exec_type: Some(fixer_upper::ExecType::New),
@@ -109,6 +113,45 @@ pub fn matchbook_message_into_fix_message(msg: Message, exchange_id: String) -> 
                 ..fixer_upper::Body::default()
             },
 
+            trailer: fixer_upper::Trailer {
+                signature: None,
+                signature_length: None,
+            },
+        },
+        MessageKind::Execution {
+            id,
+            quantity,
+            symbol,
+            side,
+            price,
+            ..
+        } => FixMessage {
+            header: fixer_upper::Header {
+                begin_string: fixer_upper::BeginString::Fix_4_4,
+                body_length: None,
+                msg_type: fixer_upper::MessageType::ExecutionReport,
+                sender_comp_id: exchange_id,
+                target_comp_id: msg.id.topic_id.to_string(),
+                msg_seq_num: msg.id.topic_sequence_n,
+                sending_time: chrono::Utc::now(),
+            },
+            body: fixer_upper::Body {
+                order_id: Some(format!("{}", id)), // TODO(will): where does this come from
+                ord_status: Some(fixer_upper::OrderStatus::New),
+                exec_id: Some(format!("{}", id)), // TODO(will): where does this come from
+                symbol: Some(symbol.iter().collect()),
+                exec_trans_type: Some(fixer_upper::ExecTransType::New),
+                exec_type: Some(fixer_upper::ExecType::New),
+                order_qty: Some(quantity as fixer_upper::Quantity),
+                leaves_qty: Some(0.0),
+                cum_qty: Some(quantity as fixer_upper::Quantity),
+                side: Some(match side {
+                    Side::Ask => fixer_upper::Side::Sell,
+                    Side::Bid => fixer_upper::Side::Buy,
+                }),
+                avg_px: Some(price as fixer_upper::Price),
+                ..fixer_upper::Body::default()
+            },
             trailer: fixer_upper::Trailer {
                 signature: None,
                 signature_length: None,
