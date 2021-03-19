@@ -1,32 +1,28 @@
 #![deny(clippy::all)]
 
+mod config;
+
 use {
     futures::{Sink, SinkExt, Stream, StreamExt},
     matchbook_types::*,
     matchbook_util::*,
-    std::{
-        collections::HashMap,
-        marker::Unpin,
-        net::{SocketAddr, SocketAddrV4},
-    },
+    std::{collections::HashMap, marker::Unpin, net::SocketAddr},
     tokio::net::UdpSocket,
     tokio_util::udp::UdpFramed,
     tracing::*,
 };
 
-const DEFAULT_MULTICAST_ADDRESS: [u8; 4] = [239, 255, 42, 98];
-const DEFAULT_MULTICAST_PORT: u16 = 50692;
 const IP_ALL: [u8; 4] = [0, 0, 0, 0];
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
-    let multicast_addr = SocketAddr::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT);
+    let config = config::source_config_from_env()?;
 
     let udp_socket = {
         let socket = bind_multicast(
-            &SocketAddrV4::new(IP_ALL.into(), DEFAULT_MULTICAST_PORT),
-            &SocketAddrV4::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT),
+            &SocketAddr::new(IP_ALL.into(), config.multicast_addr.port()),
+            &config.multicast_addr,
         )?;
 
         let socket = UdpSocket::from_std(socket)?;
@@ -37,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (sink, stream) = udp_socket.split();
 
-    spawn_main_loop(stream, sink, multicast_addr).await;
+    spawn_main_loop(stream, sink, config.multicast_addr).await;
     Ok(())
 }
 
@@ -84,8 +80,7 @@ mod test {
         let (sink_tx, mut sink_rx) = futures::channel::mpsc::channel(1);
         let (mut stream_tx, stream_rx) = futures::channel::mpsc::channel(1);
 
-        let multicast_addr =
-            SocketAddr::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT);
+        let multicast_addr = "0.0.0.0:8080".parse().unwrap();
 
         tokio::spawn(async move { spawn_main_loop(stream_rx, sink_tx, multicast_addr).await });
 
@@ -167,8 +162,7 @@ mod test {
         let (sink_tx, mut sink_rx) = futures::channel::mpsc::channel(1);
         let (mut stream_tx, stream_rx) = futures::channel::mpsc::channel(1);
 
-        let multicast_addr =
-            SocketAddr::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT);
+        let multicast_addr = "0.0.0.0:8080".parse().unwrap();
 
         tokio::spawn(async move { spawn_main_loop(stream_rx, sink_tx, multicast_addr).await });
 
@@ -246,8 +240,7 @@ mod test {
         let (sink_tx, mut sink_rx) = futures::channel::mpsc::channel(1);
         let (mut stream_tx, stream_rx) = futures::channel::mpsc::channel(1);
 
-        let multicast_addr =
-            SocketAddr::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT);
+        let multicast_addr = "0.0.0.0:8080".parse().unwrap();
 
         tokio::spawn(async move { spawn_main_loop(stream_rx, sink_tx, multicast_addr).await });
 

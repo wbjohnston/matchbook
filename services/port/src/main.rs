@@ -11,7 +11,7 @@ use {
     std::{
         collections::HashMap,
         error::Error,
-        net::{SocketAddr, SocketAddrV4},
+        net::{SocketAddr},
         sync::Arc,
     },
     tokio::{
@@ -21,8 +21,6 @@ use {
     tokio_util::udp::UdpFramed,
 };
 
-const DEFAULT_MULTICAST_ADDRESS: [u8; 4] = [239, 255, 42, 98];
-const DEFAULT_MULTICAST_PORT: u16 = 50692;
 const IP_ALL: [u8; 4] = [0, 0, 0, 0];
 
 pub type ParticipantChannelMap = Arc<RwLock<HashMap<ParticipantId, Sender<(Message, SocketAddr)>>>>;
@@ -32,23 +30,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let config = config::source_config_from_env()?;
 
     tracing_subscriber::fmt::init();
-    let service_id = ServiceId {
-        kind: ServiceKind::Port,
-        number: 0,
-    };
-    let multicast_addr = SocketAddr::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT);
-
     let context = Context {
         exchange_id: config.exchange_id,
-        service_id,
-        multicast_addr,
+        service_id: config.service_id,
+        multicast_addr: config.multicast_addr,
     };
 
     let state: ParticipantChannelMap = Arc::new(RwLock::new(HashMap::new()));
     let udp_socket = {
         let socket = bind_multicast(
-            &SocketAddrV4::new(IP_ALL.into(), DEFAULT_MULTICAST_PORT),
-            &SocketAddrV4::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT),
+            &SocketAddr::new(IP_ALL.into(), config.multicast_addr.port()),
+            &config.multicast_addr,
         )?;
 
         let socket = UdpSocket::from_std(socket)?;

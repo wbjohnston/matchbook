@@ -1,12 +1,12 @@
 #![deny(clippy::all)]
-use std::net::SocketAddrV4;
+use std::net::SocketAddr;
 pub mod codec;
 pub use codec::*;
 
 /// Bind socket to multicast address with IP_MULTICAST_LOOP and SO_REUSEADDR Enabled
 pub fn bind_multicast(
-    addr: &SocketAddrV4,
-    multi_addr: &SocketAddrV4,
+    addr: &SocketAddr,
+    multi_addr: &SocketAddr,
 ) -> Result<std::net::UdpSocket, Box<dyn std::error::Error>> {
     use socket2::{Domain, Protocol, Socket, Type};
 
@@ -18,7 +18,13 @@ pub fn bind_multicast(
     socket.bind(&socket2::SockAddr::from(*addr))?;
     socket.set_nonblocking(true)?;
     socket.set_multicast_loop_v4(false)?;
-    socket.join_multicast_v4(multi_addr.ip(), addr.ip())?;
+
+    match (multi_addr, addr) {
+        (SocketAddr::V4(multi_addr), SocketAddr::V4(addr)) => {
+            socket.join_multicast_v4(multi_addr.ip(), addr.ip())?;
+        }
+        _ => todo!(),
+    }
 
     Ok(socket.into_udp_socket())
 }
