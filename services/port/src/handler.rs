@@ -1,3 +1,6 @@
+use tokio_rustls::TlsAcceptor;
+use tokio_util::codec::Framed;
+
 use {
     crate::{message, Context, ParticipantChannelMap},
     fixer_upper::{Header as FixHeader, Message as FixMessage, MessageType as FixMessageType},
@@ -14,6 +17,7 @@ use {
 
 pub async fn spawn_listen_handler<'a>(
     listener: TcpListener,
+    tls_acceptor: TlsAcceptor,
     udp_tx: Sender<(Message, SocketAddr)>,
     state: ParticipantChannelMap,
     context: Context,
@@ -22,29 +26,39 @@ pub async fn spawn_listen_handler<'a>(
     while let Ok((stream, addr)) = listener.accept().await {
         let span = debug_span!("connection accepted");
         let _enter = span.enter();
+        let stream = match tls_acceptor.accept(stream).await {
+            Ok(stream) => stream,
+            Err(e) => {
+                error!("tls failed {:?}", e);
+                continue;
+            }
+        };
 
         info!("accepted connection from {}", addr);
         let udp_tx = udp_tx.clone();
         let state = state.clone();
         let context = context.clone();
+        let (sink, stream) = Framed::new(stream, FixJsonCodec::new()).split();
 
-        tokio::spawn(
-            async move { spawn_client_handler(stream, udp_tx, addr, state, context).await },
-        );
+        tokio::spawn(async move {
+            spawn_client_handler(stream, sink, udp_tx, addr, state, context).await
+        });
     }
 }
 
-pub async fn spawn_client_handler(
-    stream: tokio::net::TcpStream,
+pub async fn spawn_client_handler<St, Si>(
+    mut stream: St,
+    mut sink: Si,
     udp_tx: Sender<(Message, SocketAddr)>,
     addr: SocketAddr,
     state: ParticipantChannelMap,
     context: Context,
-) {
+) where
+    St: Stream<Item = Result<fixer_upper::Message, std::io::Error>> + Send + Unpin + 'static,
+    Si: Sink<fixer_upper::Message> + Send + Unpin + 'static,
+{
     let (participant_tx, mut participant_rx): (Sender<(Message, SocketAddr)>, _) =
         tokio::sync::mpsc::channel(32);
-    let framed = tokio_util::codec::Framed::new(stream, FixJsonCodec::new());
-    let (mut sink, mut stream) = framed.split();
 
     // FIX session sequence numbers start at 1
     let mut inbound_sequence_n = 1;
@@ -128,7 +142,6 @@ pub async fn spawn_client_handler(
             // normal flow
             loop {
                 let message = stream.next().await;
-                // TODO(will): check if sequence number matches
                 if let Some(Ok(ref message)) = message {
                     let sequence_n = message.header.msg_seq_num;
                     if sequence_n != inbound_sequence_n {
@@ -193,21 +206,24 @@ pub async fn spawn_client_handler(
     let sender_handle = {
         let context = context.clone();
         tokio::spawn(async move {
-            // TODO(will): need to listen for messages coming from listener task
-            //              specifically, need to be able to echo back messages like Logon that
-            //              dont need to be sent to other services
             loop {
                 tokio::select! {
                     Some((message, _)) = participant_rx.recv()=> {
                         let mut message = message::matchbook_message_into_fix_message(message, context.exchange_id.clone());
                         message.header.msg_seq_num = outbound_sequence_n;
-                        sink.send(message)
-                            .await
-                            .expect("failed to write message to client");
+                        match sink.send(message).await {
+                            Ok(_) => {}
+                            // TODO(will): figure out what needs to be done to be able to debug print the error
+                            Err(_) => {warn!("failed to send to sender")}
+                        }
                         outbound_sequence_n += 1;
                     }
                     Some(message) = sender_rx.recv() => {
-                        sink.send(message).await.unwrap()
+                        match sink.send(message).await {
+                            Ok(_) => {}
+                            // TODO(will): figure out what needs to be done to be able to debug print the error
+                            Err(_) => {warn!("failed to send to sender")}
+                        }
                     }
                     else => {
                         break
