@@ -1,31 +1,31 @@
 #![deny(clippy::all)]
+mod config;
+
 use futures::sink::SinkExt;
 use futures::stream::StreamExt;
 use matchbook_types::*;
 use matchbook_util::*;
 use matching_engine::*;
-use std::net::{SocketAddr, SocketAddrV4};
+use std::net::SocketAddr;
 use tokio::net::UdpSocket;
 use tokio_util::udp::UdpFramed;
 use tracing::*;
 
-const DEFAULT_MULTICAST_ADDRESS: [u8; 4] = [239, 255, 42, 98];
-const DEFAULT_MULTICAST_PORT: u16 = 50692;
 const IP_ALL: [u8; 4] = [0, 0, 0, 0];
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
+    let config = config::source_config_from_env()?;
+
     let (mut sink, mut stream) = {
         let socket = bind_multicast(
-            &SocketAddrV4::new(IP_ALL.into(), DEFAULT_MULTICAST_PORT),
-            &SocketAddrV4::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT),
+            &SocketAddr::new(IP_ALL.into(), config.multicast_addr.port()),
+            &config.multicast_addr,
         )?;
         let socket = UdpSocket::from_std(socket)?;
         UdpFramed::new(socket, MatchbookMessageCodec::new()).split()
     };
-
-    let multi_addr = SocketAddr::new(DEFAULT_MULTICAST_ADDRESS.into(), DEFAULT_MULTICAST_PORT);
 
     let mut engine = MatchingEngine::default();
 
@@ -80,7 +80,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             ..message
                         };
 
-                        sink.send((acknowledge_message, multi_addr)).await?;
+                        sink.send((acknowledge_message, config.multicast_addr))
+                            .await?;
                     }
                     _ => {}
                 }

@@ -26,6 +26,9 @@ services:
       context: .
       dockerfile: services/matching-engine/Dockerfile
   retransmitter:
+    env_file: 
+      - services/retransmitter/.env
+      - .env
     networks: 
       - backend
     environment: 

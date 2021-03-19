@@ -119,6 +119,7 @@ impl std::str::FromStr for ServiceId {
 pub enum ServiceKind {
     Port,
     MatchingEngine,
+    Retransmitter,
 }
 
 impl std::str::FromStr for ServiceKind {
@@ -128,6 +129,7 @@ impl std::str::FromStr for ServiceKind {
         match s {
             "port" => Ok(ServiceKind::Port),
             "matching-engine" => Ok(ServiceKind::MatchingEngine),
+            "retransmitter" => Ok(ServiceKind::Retransmitter),
             unknown => Err(format!("service kind '{}' is unknown", unknown).into()),
         }
     }
@@ -139,6 +141,7 @@ impl std::fmt::Display for ServiceKind {
         let s = match self {
             Port => "port",
             MatchingEngine => "matching-engine",
+            Retransmitter => "retransmitter",
         };
 
         write!(f, "{}", s)
