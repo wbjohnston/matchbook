@@ -7,7 +7,14 @@ Matchbook accepts [Financial Information eXchange](https://en.wikipedia.org/wiki
 ![ci workflow status](https://github.com/wbjohnston/matchbook/actions/workflows/ci.yml/badge.svg)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-## Usage
+## Features
+
+1. Limit order matching
+2. Custom FIX implmentation
+3. FIX sessions secured with TLS
+4. Distributed architecture
+
+## [Usage](./USER_GUIDE.md)
 
 provided you have [docker compose](https://docs.docker.com/compose/install/) installed, you can start matchbook using:
 
@@ -16,6 +23,8 @@ docker-compose up
 ```
 
 matchbook will start listening on `localhost:8080` for incoming TCP connections.
+
+for a tutorial on how to interact with matchbook, check out [the user guide](./USER_GUIDE.md)
 
 ## Contributing
 
