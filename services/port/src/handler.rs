@@ -127,6 +127,7 @@ pub async fn spawn_client_handler<St, Si>(
                         message.header.sender_comp_id = message.header.target_comp_id;
                         message.header.target_comp_id = id.clone();
                         sender_tx.send(message).await.unwrap();
+                        outbound_sequence_n += 1;
                         break id;
                     }
                     None => return,

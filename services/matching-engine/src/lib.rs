@@ -9,29 +9,33 @@ use std::{
 #[derive(Debug, Default)]
 pub struct MatchingEngine {
     books: HashMap<SymbolOwned, Book>,
+    order_counter: usize,
 }
 
 impl MatchingEngine {
     pub fn submit_limit_order(
         &mut self,
+        owner: ParticipantId,
         side: Side,
         symbol: SymbolRef,
         price: Price,
         quantity: Quantity,
-    ) -> Result<Vec<Execution>, Box<dyn std::error::Error>> {
-        let order = LimitOrder::new(quantity, price);
-
+    ) -> Result<(OrderId, Vec<Execution>), Box<dyn std::error::Error>> {
         let book = match self.books.get_mut(symbol) {
             Some(book) => book,
             None => return Err(format!("symbol '{:?}' does not exist", symbol).into()),
         };
+
+        let id = self.order_counter;
+        self.order_counter += 1;
+        let order = LimitOrder::new(id, owner, quantity, price);
 
         let fills = match side {
             Side::Ask => book.submit_limit_ask(order)?,
             Side::Bid => book.submit_limit_bid(order)?,
         };
 
-        Ok(fills)
+        Ok((id, fills))
     }
 
     /// Create a symbol if it doesn't exist and return true, otherwise do nothing and return false
@@ -48,25 +52,6 @@ pub struct Book {
 
 impl Book {
     /// Submit a ask limit order
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use matching_engine::{Book, LimitOrder};
-    /// let mut book = Book::default();
-    /// let first_order = LimitOrder::new(100, 10);
-    /// let _ = book.submit_limit_ask(first_order).unwrap();
-    ///
-    /// let second_order = LimitOrder::new(150, 10);
-    /// let _ = book.submit_limit_ask(second_order);
-    ///
-    /// assert_eq!(book.asks().nth(0), Some(&first_order));
-    /// assert_eq!(book.asks().nth(1), Some(&second_order));
-    ///
-    /// let better_order = LimitOrder::new(150, 11);
-    /// let _ = book.submit_limit_ask(better_order);
-    /// assert_eq!(book.asks().nth(0), Some(&better_order));
-    /// ```
     pub fn submit_limit_ask(
         &mut self,
         order: LimitOrder,
@@ -76,25 +61,6 @@ impl Book {
     }
 
     /// Submit a bid limit order
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use matching_engine::{Book, LimitOrder};
-    /// let mut book = Book::default();
-    /// let first_order = LimitOrder::new(100, 10);
-    /// let _ = book.submit_limit_bid(first_order).unwrap();
-    ///
-    /// let second_order = LimitOrder::new(150, 10);
-    /// let _ = book.submit_limit_bid(second_order);
-    ///
-    /// assert_eq!(book.bids().nth(0), Some(&first_order));
-    /// assert_eq!(book.bids().nth(1), Some(&second_order));
-    ///
-    /// let better_order = LimitOrder::new(150, 9);
-    /// let _ = book.submit_limit_bid(better_order);
-    /// assert_eq!(book.bids().nth(0), Some(&better_order));
-    /// ```
     pub fn submit_limit_bid(
         &mut self,
         order: LimitOrder,
@@ -119,6 +85,10 @@ impl Book {
                 bid.0.fill(fillable_quantity);
 
                 fills.push(Execution {
+                    asker_id: ask.owner.clone(),
+                    asker_order_id: ask.id,
+                    bidder_id: bid.0.owner.clone(),
+                    bidder_order_id: bid.0.id,
                     price: ask.price.max(bid.0.price),
                     quantity: fillable_quantity,
                 });
@@ -153,14 +123,20 @@ impl Book {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Execution {
+    pub bidder_id: ParticipantId,
+    pub bidder_order_id: usize,
+    pub asker_id: ParticipantId,
+    pub asker_order_id: usize,
     pub quantity: Quantity,
     pub price: Price,
 }
 
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LimitOrder {
+    id: OrderId,
+    owner: ParticipantId,
     quantity: Quantity,
     price: Price,
     remaining: Quantity,
@@ -179,8 +155,10 @@ impl std::cmp::Ord for LimitOrder {
 }
 
 impl LimitOrder {
-    pub fn new(quantity: usize, price: usize) -> Self {
+    pub fn new(id: OrderId, owner: String, quantity: usize, price: usize) -> Self {
         LimitOrder {
+            id,
+            owner,
             quantity,
             price,
             remaining: quantity,

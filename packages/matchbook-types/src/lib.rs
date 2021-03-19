@@ -4,6 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 
+pub type OrderId = usize;
 pub type UtcTimeStamp = DateTime<Utc>;
 pub type AccountId = u64;
 pub type ParticipantId = String;
@@ -74,10 +75,18 @@ pub enum MessageKind {
         symbol: SymbolOwned,
     },
     LimitOrderSubmitRequestAcknowledge {
+        id: OrderId,
         side: Side,
         price: Price,
         quantity: Quantity,
         symbol: SymbolOwned,
+    },
+    Execution {
+        id: OrderId,
+        price: Price,
+        quantity: Quantity,
+        symbol: SymbolOwned,
+        side: Side,
     },
     // uses the id field of the message wrapper to determine what message to resend
     RetransmitRequest,
