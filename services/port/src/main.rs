@@ -61,17 +61,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let (sink, stream) = udp_socket.split();
 
-    let mut tls_config = ServerConfig::new(NoClientAuth::new());
-    let certs = certs(&mut BufReader::new(std::io::Cursor::new(config.tls_cert))).unwrap();
-    let keys = pkcs8_private_keys(&mut BufReader::new(std::io::Cursor::new(
-        config.tls_cert_key,
-    )))
-    .unwrap();
-
-    tls_config.set_single_cert(certs, keys[0].clone())?;
-
-    let tls_acceptor = TlsAcceptor::from(Arc::new(tls_config));
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
+    let tls_acceptor = setup_tls_acceptor(config.tls_cert, config.tls_cert_key)?;
 
     // A task responsible for handling incoming client connections
     let client_listener_handle = {
@@ -101,6 +92,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     );
 
     Ok(())
+}
+
+fn setup_tls_acceptor(
+    cert: String,
+    key: String,
+) -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
+    let mut tls_config = ServerConfig::new(NoClientAuth::new());
+    let certs = certs(&mut BufReader::new(std::io::Cursor::new(cert))).unwrap();
+    let keys = pkcs8_private_keys(&mut BufReader::new(std::io::Cursor::new(key))).unwrap();
+
+    tls_config.set_single_cert(certs, keys[0].clone())?;
+
+    Ok(TlsAcceptor::from(Arc::new(tls_config)))
 }
 
 #[derive(Debug, Clone)]
