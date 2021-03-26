@@ -1,11 +1,11 @@
 use async_stream::stream;
-use futures::{SinkExt, Stream, StreamExt};
+use futures::{Stream, StreamExt};
 use matchbook_types::*;
 use std::collections::HashMap;
 
 pub fn message_sequencer_stream(
     mut stream: impl futures::Stream<Item = Result<Message, std::io::Error>> + Unpin,
-    mut rerequest_tx: tokio::sync::mpsc::Sender<(String, u64)>,
+    rerequest_tx: tokio::sync::mpsc::Sender<(String, u64)>,
     buf_size: usize,
     // need to add param to re-request messages
 ) -> impl Stream<Item = Result<Message, std::io::Error>> {
@@ -146,18 +146,22 @@ mod test {
 
         let y = tokio::spawn(async move {
             futures::pin_mut!(stream);
-            let sampled: Vec<_> = stream.take(messages.len()).collect().await;
-
-            dbg!(&sampled);
+            let sampled: Vec<_> = stream
+                .take(messages.len())
+                .map(|x| x.unwrap())
+                .collect()
+                .await;
 
             let sampled_client1_messages: Vec<_> = sampled
                 .iter()
-                .filter_map(|x| Some(x.ok().unwrap().id.topic_id == "client1"))
+                .cloned()
+                .filter(|x| x.id.topic_id.as_str() == "client1")
                 .collect();
 
             let sampled_client2_messages: Vec<_> = sampled
                 .iter()
-                .filter_map(|x| Some(x.ok().unwrap().id.topic_id == "client2"))
+                .cloned()
+                .filter(|x| x.id.topic_id.as_str() == "client2")
                 .collect();
 
             assert_eq!(

@@ -194,12 +194,9 @@ pub async fn spawn_client_handler(
                             }
                         };
 
-                        match udp_tx.send(message).await {
-                            Err(e) => {
-                                error!("{:?}", e);
-                                continue;
-                            }
-                            _ => {}
+                        if let Err(e) = udp_tx.send(message).await {
+                            error!("{:?}", e);
+                            continue;
                         }
                     }
                     None => break,
