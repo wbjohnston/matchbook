@@ -21,3 +21,4 @@ bytes = "1"
 tokio-util = {version = "0.6.4", features = ["codec", "net"]}
 serde_json = "1.0"
 fixer-upper = { path = "../fixer-upper"}
+itertools = "0.10.0"

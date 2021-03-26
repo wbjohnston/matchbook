@@ -327,6 +327,7 @@ dependencies = [
  "chrono",
  "fixer-upper",
  "futures",
+ "itertools",
  "matchbook-types",
  "pretty_assertions",
  "rand",

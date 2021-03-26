@@ -325,6 +325,7 @@ dependencies = [
  "bytes",
  "fixer-upper",
  "futures",
+ "itertools",
  "matchbook-types",
  "serde_json",
  "socket2",
