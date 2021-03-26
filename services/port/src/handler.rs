@@ -282,20 +282,22 @@ pub async fn spawn_multicast_tx_handler(
     mut rerequest_rx: tokio::sync::mpsc::Receiver<(String, u64)>,
     context: Context,
 ) {
-    tokio::select! {
-        Some(message) = rx.recv() => {
-            sink.send(message).await.unwrap()
-        },
-        Some((topic, seq_n)) = rerequest_rx.recv() => {
-            info!("rerequesting {}:{}", topic, seq_n);
-            sink.send(Message {
-                id: MessageId {
-                    publisher_id: context.service_id,
-                    topic_id: topic,
-                    topic_sequence_n: seq_n as u64,
-                },
-                kind: MessageKind::RetransmitRequest
-            }).await.unwrap()
+    loop {
+        tokio::select! {
+            Some(message) = rx.recv() => {
+                sink.send(message).await.unwrap()
+            },
+            Some((topic, seq_n)) = rerequest_rx.recv() => {
+                info!("rerequesting {}:{}", topic, seq_n);
+                sink.send(Message {
+                    id: MessageId {
+                        publisher_id: context.service_id,
+                        topic_id: topic,
+                        topic_sequence_n: seq_n as u64,
+                    },
+                    kind: MessageKind::RetransmitRequest
+                }).await.unwrap()
+            }
         }
     }
 }
