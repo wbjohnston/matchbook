@@ -17,7 +17,7 @@ impl MatchbookMessageCodec {
 }
 
 impl Encoder<Message> for MatchbookMessageCodec {
-    type Error = Box<dyn std::error::Error>;
+    type Error = std::io::Error;
 
     fn encode(
         &mut self,
@@ -61,7 +61,7 @@ impl FixJsonCodec {
 }
 
 impl Encoder<FixMessage> for FixJsonCodec {
-    type Error = Box<dyn std::error::Error>;
+    type Error = std::io::Error;
 
     fn encode(
         &mut self,

@@ -6,26 +6,14 @@ use futures::stream::StreamExt;
 use matchbook_types::*;
 use matchbook_util::*;
 use matching_engine::*;
-use std::net::SocketAddr;
-use tokio::net::UdpSocket;
-use tokio_util::udp::UdpFramed;
 use tracing::*;
-
-const IP_ALL: [u8; 4] = [0, 0, 0, 0];
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
     let config = config::source_config_from_env()?;
 
-    let (mut sink, mut stream) = {
-        let socket = bind_multicast(
-            &SocketAddr::new(IP_ALL.into(), config.multicast_addr.port()),
-            &config.multicast_addr,
-        )?;
-        let socket = UdpSocket::from_std(socket)?;
-        UdpFramed::new(socket, MatchbookMessageCodec::new()).split()
-    };
+    let (mut sink, mut stream) = make_matchbook_streams(config.multicast_addr)?;
 
     let mut engine = MatchingEngine::default();
 
@@ -35,10 +23,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     loop {
         match stream.next().await {
-            Some(Ok((message, addr))) => {
-                let span = debug_span!("matching", ?addr);
-                let _enter = span.enter();
-                #[allow(clippy::single_match)] // this is going to be used later
+            Some(Ok(message)) => {
+                #[allow(clippy::single_match)]
                 match message.kind {
                     MessageKind::LimitOrderSubmitRequest {
                         quantity,
@@ -79,8 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             ..message
                         };
 
-                        sink.send((acknowledge_message, config.multicast_addr))
-                            .await?;
+                        sink.send(acknowledge_message).await?;
 
                         for execution in executions {
                             info!(?execution, "reporting execution");
@@ -119,12 +104,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 },
                             };
 
-                            sink.send((bidder_message, config.multicast_addr))
-                                .await
-                                .unwrap();
-                            sink.send((asker_message, config.multicast_addr))
-                                .await
-                                .unwrap();
+                            sink.send(bidder_message).await.unwrap();
+                            sink.send(asker_message).await.unwrap();
                         }
                     }
                     _ => {}
