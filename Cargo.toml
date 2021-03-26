@@ -10,10 +10,11 @@ edition = "2018"
 name = "integration"
 path = "./tests/tests.rs"
 
-[workspace]
-members = [
-    "./packages/*",
-    "./services/*"
-]
 
 [dependencies]
+matchbook-types = {path = "./packages/matchbook-types"}
+matchbook-util = {path = "./packages/matchbook-util"}
+fixer-upper = {path = "./packages/fixer-upper"}
+matching-engine = {path = "./services/matching-engine"}
+port = {path = "./services/port"}
+retransmitter = {path = "./services/retransmitter"}
