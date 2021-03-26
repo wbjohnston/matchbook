@@ -1,4 +1,4 @@
-# Matchbook
+# ![Matchbook logo](./doc/img/matchbook.svg)
 
 A toy stock exchange written to learn about Exchange technology and architecture. Inspired by [Brian Nigito's talk "How to Build an Exchange"](https://www.youtube.com/watch?v=b1e4t2k2KJY).
 
