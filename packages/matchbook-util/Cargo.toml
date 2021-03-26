@@ -6,12 +6,19 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[dev-dependencies]
+chrono = "0.4.19"
+pretty_assertions = "0.7.1"
+rand = "0.8.3"
+
 [dependencies]
+tokio = {version = "1.2.0", features = ["full"]}
 matchbook-types = { path = "../matchbook-types" }
 socket2 = { version = "0.3.4", features = ["reuseport"] }
+futures = "0.3.13"
+async-stream = "0.3.0"
 bytes = "1"
 tokio-util = {version = "0.6.4", features = ["codec", "net"]}
 serde_json = "1.0"
 fixer-upper = { path = "../fixer-upper"}
-futures = "0.3.13"
-tokio = {version = "1.4.0", features = ["net"]}
+itertools = "0.10.0"

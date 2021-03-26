@@ -40,6 +40,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let (sink, stream) = make_matchbook_streams(config.multicast_addr)?;
 
+    let (rerequest_tx, rerequest_rx) = tokio::sync::mpsc::channel(1024);
+    let stream = message_sequencer_stream(stream, rerequest_tx, 1024);
+
     let (udp_tx, udp_rx) = tokio::sync::mpsc::channel(32);
 
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
@@ -63,7 +66,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let multicast_tx_handle = {
         let context = context.clone();
-        tokio::spawn(async move { spawn_multicast_tx_handler(sink, udp_rx, context).await })
+        tokio::spawn(async move {
+            spawn_multicast_tx_handler(sink, udp_rx, rerequest_rx, context).await
+        })
     };
 
     let _ = tokio::join!(

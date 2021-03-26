@@ -10,6 +10,8 @@ const IP_ALL: [u8; 4] = [0, 0, 0, 0];
 
 pub mod codec;
 pub use codec::*;
+pub mod stream;
+pub use stream::*;
 
 /// Bind socket to multicast address with IP_MULTICAST_LOOP and SO_REUSEADDR Enabled
 pub fn bind_multicast(
