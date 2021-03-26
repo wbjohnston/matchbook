@@ -18,7 +18,7 @@ use {
 pub async fn spawn_listen_handler<'a>(
     listener: TcpListener,
     tls_acceptor: TlsAcceptor,
-    udp_tx: Sender<(Message, SocketAddr)>,
+    udp_tx: Sender<Message>,
     state: ParticipantChannelMap,
     context: Context,
 ) {
@@ -46,19 +46,21 @@ pub async fn spawn_listen_handler<'a>(
     }
 }
 
-pub async fn spawn_client_handler<St, Si>(
-    mut stream: St,
-    mut sink: Si,
-    udp_tx: Sender<(Message, SocketAddr)>,
+pub async fn spawn_client_handler(
+    mut stream: impl Stream<Item = Result<fixer_upper::Message, std::io::Error>>
+        + Unpin
+        + Send
+        + 'static,
+    mut sink: impl Sink<fixer_upper::Message, Error = std::io::Error>
+        + Unpin
+        + std::marker::Send
+        + 'static,
+    udp_tx: Sender<Message>,
     addr: SocketAddr,
     state: ParticipantChannelMap,
     context: Context,
-) where
-    St: Stream<Item = Result<fixer_upper::Message, std::io::Error>> + Send + Unpin + 'static,
-    Si: Sink<fixer_upper::Message> + Send + Unpin + 'static,
-{
-    let (participant_tx, mut participant_rx): (Sender<(Message, SocketAddr)>, _) =
-        tokio::sync::mpsc::channel(32);
+) {
+    let (participant_tx, mut participant_rx): (Sender<Message>, _) = tokio::sync::mpsc::channel(32);
 
     // FIX session sequence numbers start at 1
     let mut inbound_sequence_n = 1;
@@ -193,7 +195,7 @@ pub async fn spawn_client_handler<St, Si>(
                         };
 
                         udp_tx
-                            .send((message, addr))
+                            .send(message)
                             .await
                             .expect("failed the send message to backbone transmitter");
                     }
@@ -209,7 +211,7 @@ pub async fn spawn_client_handler<St, Si>(
         tokio::spawn(async move {
             loop {
                 tokio::select! {
-                    Some((message, _)) = participant_rx.recv()=> {
+                    Some(message) = participant_rx.recv()=> {
                         let mut message = message::matchbook_message_into_fix_message(message, context.exchange_id.clone());
                         message.header.msg_seq_num = outbound_sequence_n;
                         match sink.send(message).await {
@@ -257,14 +259,12 @@ pub async fn spawn_multicast_rx_handler<S>(
     state: ParticipantChannelMap,
     _context: Context,
 ) where
-    S: Stream<Item = Result<(Message, SocketAddr), std::io::Error>> + Unpin + std::fmt::Debug,
+    S: Stream<Item = Result<Message, std::io::Error>> + Unpin,
 {
-    while let Some(Ok((message, addr))) = stream.next().await {
+    while let Some(Ok(message)) = stream.next().await {
         if let Some(tx) = state.read().await.get(&message.id.topic_id).cloned() {
             debug!("received message",);
-            tx.send((message, addr))
-                .await
-                .expect("failed to send to backbone");
+            tx.send(message).await.expect("failed to send to backbone");
             trace!("message forwarded to client connection handler");
         } else {
             warn!("message meant for invalid participant");
@@ -272,19 +272,20 @@ pub async fn spawn_multicast_rx_handler<S>(
     }
 }
 
-pub async fn spawn_multicast_tx_handler<S>(
-    mut sink: S,
-    mut rx: Receiver<(Message, SocketAddr)>,
-    context: Context,
-) where
-    S: Sink<(Message, SocketAddr), Error = Box<dyn std::error::Error>> + Unpin + std::fmt::Debug,
-{
-    let multicast_addr = context.multicast_addr;
-    while let Some((message, _addr)) = rx.recv().await {
+pub async fn spawn_multicast_tx_handler(
+    mut sink: impl Sink<Message, Error = std::io::Error> + Unpin,
+    mut rx: Receiver<Message>,
+    _context: Context,
+) {
+    while let Some(message) = rx.recv().await {
         debug!(?message.id, "received message");
-        sink.send((message, multicast_addr))
-            .await
-            .expect("failed to send to backbone");
+        match sink.send(message).await {
+            Ok(_) => {}
+            Err(e) => {
+                warn!("{:?}", e);
+                continue;
+            }
+        }
         trace!("message sent to client");
     }
 }

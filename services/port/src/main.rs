@@ -14,26 +14,17 @@ mod handler;
 mod message;
 
 use {
-    futures::StreamExt,
     handler::*,
     matchbook_types::*,
     matchbook_util::*,
-    std::{
-        collections::HashMap,
-        error::Error,
-        net::{SocketAddr},
-        sync::Arc,
-    },
+    std::{collections::HashMap, error::Error, net::SocketAddr, sync::Arc},
     tokio::{
-        net::{TcpListener, UdpSocket},
+        net::TcpListener,
         sync::{mpsc::Sender, RwLock},
     },
-    tokio_util::udp::UdpFramed,
 };
 
-const IP_ALL: [u8; 4] = [0, 0, 0, 0];
-
-pub type ParticipantChannelMap = Arc<RwLock<HashMap<ParticipantId, Sender<(Message, SocketAddr)>>>>;
+pub type ParticipantChannelMap = Arc<RwLock<HashMap<ParticipantId, Sender<Message>>>>;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -46,20 +37,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let state: ParticipantChannelMap = Arc::new(RwLock::new(HashMap::new()));
-    let udp_socket = {
-        let socket = bind_multicast(
-            &SocketAddr::new(IP_ALL.into(), config.multicast_addr.port()),
-            &config.multicast_addr,
-        )?;
 
-        let socket = UdpSocket::from_std(socket)?;
-
-        UdpFramed::new(socket, MatchbookMessageCodec::new())
-    };
+    let (sink, stream) = make_matchbook_streams(config.multicast_addr)?;
 
     let (udp_tx, udp_rx) = tokio::sync::mpsc::channel(32);
-
-    let (sink, stream) = udp_socket.split();
 
     let listener = TcpListener::bind("0.0.0.0:8080").await?;
     let tls_acceptor = setup_tls_acceptor(config.tls_cert, config.tls_cert_key)?;
