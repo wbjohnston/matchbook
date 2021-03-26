@@ -4,7 +4,8 @@ A toy stock exchange written to learn about Exchange technology and architecture
 
 Matchbook accepts [Financial Information eXchange](https://en.wikipedia.org/wiki/Financial_Information_eXchange) (FIX) messages from incoming clients on TCP port `8080`.
 
-![ci workflow status](https://github.com/wbjohnston/matchbook/actions/workflows/ci.yml/badge.svg)
+[![Build status](https://github.com/wbjohnston/matchbook/actions/workflows/ci.yml/badge.svg)](https://github.com/wbjohnston/matchbook/actions?query=branch%3Amain)
+[![dependency status](https://deps.rs/repo/github/wbjohnston/matchbook/status.svg)](https://deps.rs/repo/github/wbjohnston/matchbook)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 ## Features
