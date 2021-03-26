@@ -194,10 +194,13 @@ pub async fn spawn_client_handler(
                             }
                         };
 
-                        udp_tx
-                            .send(message)
-                            .await
-                            .expect("failed the send message to backbone transmitter");
+                        match udp_tx.send(message).await {
+                            Err(e) => {
+                                error!("{:?}", e);
+                                continue;
+                            }
+                            _ => {}
+                        }
                     }
                     None => break,
                     x => warn!("{:?}", x),
@@ -255,12 +258,13 @@ pub async fn spawn_client_handler(
 }
 
 pub async fn spawn_multicast_rx_handler<S>(
-    mut stream: S,
+    stream: S,
     state: ParticipantChannelMap,
     _context: Context,
 ) where
-    S: Stream<Item = Result<Message, std::io::Error>> + Unpin,
+    S: Stream<Item = Result<Message, std::io::Error>>,
 {
+    futures::pin_mut!(stream);
     while let Some(Ok(message)) = stream.next().await {
         if let Some(tx) = state.read().await.get(&message.id.topic_id).cloned() {
             debug!("received message",);
@@ -275,17 +279,23 @@ pub async fn spawn_multicast_rx_handler<S>(
 pub async fn spawn_multicast_tx_handler(
     mut sink: impl Sink<Message, Error = std::io::Error> + Unpin,
     mut rx: Receiver<Message>,
-    _context: Context,
+    mut rerequest_rx: tokio::sync::mpsc::Receiver<(String, u64)>,
+    context: Context,
 ) {
-    while let Some(message) = rx.recv().await {
-        debug!(?message.id, "received message");
-        match sink.send(message).await {
-            Ok(_) => {}
-            Err(e) => {
-                warn!("{:?}", e);
-                continue;
-            }
+    tokio::select! {
+        Some(message) = rx.recv() => {
+            sink.send(message).await.unwrap()
+        },
+        Some((topic, seq_n)) = rerequest_rx.recv() => {
+            info!("rerequesting {}:{}", topic, seq_n);
+            sink.send(Message {
+                id: MessageId {
+                    publisher_id: context.service_id,
+                    topic_id: topic,
+                    topic_sequence_n: seq_n as u64,
+                },
+                kind: MessageKind::RetransmitRequest
+            }).await.unwrap()
         }
-        trace!("message sent to client");
     }
 }

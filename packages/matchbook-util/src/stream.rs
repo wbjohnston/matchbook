@@ -4,11 +4,11 @@ use matchbook_types::*;
 use std::collections::HashMap;
 
 pub fn message_sequencer_stream(
-    mut stream: impl futures::Stream<Item = Message> + Unpin,
-    mut rerequest_sink: impl futures::Sink<(String, usize)> + Unpin,
+    mut stream: impl futures::Stream<Item = Result<Message, std::io::Error>> + Unpin,
+    mut rerequest_tx: tokio::sync::mpsc::Sender<(String, u64)>,
     buf_size: usize,
     // need to add param to re-request messages
-) -> impl Stream<Item = Message> {
+) -> impl Stream<Item = Result<Message, std::io::Error>> {
     stream! {
         let mut topics = HashMap::new();
 
@@ -18,7 +18,7 @@ pub fn message_sequencer_stream(
             cursor: usize
         }
 
-        while let Some(message) = stream.next().await {
+        while let Some(Ok(message)) = stream.next().await {
             let topic = message.id.topic_id.clone();
             let id = message.id.topic_sequence_n as usize;
 
@@ -29,7 +29,7 @@ pub fn message_sequencer_stream(
             });
 
             if id == entry.next_expected_id {
-                yield message;
+                yield Ok(message);
 
                 entry.next_expected_id += 1;
 
@@ -38,7 +38,7 @@ pub fn message_sequencer_stream(
                     if let Some(msg) = entry.buf[entry.cursor].take() {
                         entry.cursor = (entry.cursor + 1) % entry.buf.len();
                         entry.next_expected_id += 1;
-                        yield msg;
+                        yield Ok(msg);
                     } else {
                         break
                     }
@@ -66,11 +66,11 @@ pub fn message_sequencer_stream(
                 let mut id_offset = 1;
                 let mut scan_cursor = entry.cursor;
 
-                let _ = rerequest_sink.send((topic.clone(), entry.next_expected_id)).await;
+                let _ = rerequest_tx.send((topic.clone(), entry.next_expected_id as u64)).await;
                 while scan_cursor != write_idx {
                     if entry.buf[scan_cursor].is_none() {
                         let id_to_rerequest = entry.next_expected_id + id_offset;
-                        let _ = rerequest_sink.send((topic.clone(), id_to_rerequest)).await;
+                        let _ = rerequest_tx.send((topic.clone(), id_to_rerequest as u64)).await;
                     }
 
                     id_offset += 1;
@@ -91,7 +91,7 @@ mod test {
     #[tokio::test]
     async fn sequencer_stream_writes_outputs_in_correct_order_and_removes_duplicates() {
         let (mut tx, rx) = futures::channel::mpsc::unbounded();
-        let (r_tx, r_rx) = futures::channel::mpsc::unbounded();
+        let (r_tx, mut r_rx) = tokio::sync::mpsc::channel(32);
 
         let stream = message_sequencer_stream(rx, r_tx, 1);
 
@@ -139,7 +139,7 @@ mod test {
         let sending_order = vec![0, 5, 0, 4, 3, 2, 1, 3, 4];
 
         for i in sending_order {
-            tx.send(messages[i].clone()).await.unwrap();
+            tx.send(Ok(messages[i].clone())).await.unwrap();
         }
 
         drop(tx); // drop tx to close the channel
@@ -152,14 +152,12 @@ mod test {
 
             let sampled_client1_messages: Vec<_> = sampled
                 .iter()
-                .cloned()
-                .filter(|x| x.id.topic_id == "client1")
+                .filter_map(|x| Some(x.ok().unwrap().id.topic_id == "client1"))
                 .collect();
 
             let sampled_client2_messages: Vec<_> = sampled
                 .iter()
-                .cloned()
-                .filter(|x| x.id.topic_id == "client2")
+                .filter_map(|x| Some(x.ok().unwrap().id.topic_id == "client2"))
                 .collect();
 
             assert_eq!(
@@ -181,7 +179,12 @@ mod test {
                 ("client2".to_string(), 0),
                 ("client1".to_string(), 1),
             ];
-            let rerequests: Vec<_> = r_rx.collect().await;
+            let mut rerequests = vec![];
+
+            while let Some(x) = r_rx.recv().await {
+                rerequests.push(x);
+            }
+
             assert_eq!(rerequests, expected_rerequests)
         });
 

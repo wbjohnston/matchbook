@@ -35,7 +35,7 @@ pub fn fix_message_into_matchbook_message(
             id: MessageId {
                 publisher_id: service_id,
                 topic_id: msg.header.sender_comp_id,
-                topic_sequence_n: msg.header.msg_seq_num,
+                topic_sequence_n: msg.header.msg_seq_num - 1,
             },
         },
         x => unimplemented!("{:?}", x),
