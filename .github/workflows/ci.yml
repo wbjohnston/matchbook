@@ -85,6 +85,13 @@ jobs:
             - uses: Swatinem/rust-cache@v1
               with:
                 working-directory: ${{matrix.project-dir}}
+            - name: install tarpaulin
+              run: cargo install cargo-tarpaulin
             - name: test
-              run: cargo test
+              run: cargo tarpaulin
               working-directory: ${{ matrix.project-dir }}
+            - name: Upload to codecov.io
+              uses: codecov/codecov-action@v1.0.2
+              working-directory: ${{ matrix.project-dir }}
+              with:
+                flags: ${{ matrix.project-dir }}
