@@ -14,4 +14,4 @@ tokio-util = {version = "0.6.4", features = ["codec", "net"]}
 serde_json = "1.0"
 fixer-upper = { path = "../fixer-upper"}
 futures = "0.3.13"
-tokio = {version = "1.4.0", features = ["net"]}
+tokio = {version = "1.18.5", features = ["net"]}
